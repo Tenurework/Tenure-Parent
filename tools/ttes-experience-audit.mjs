@@ -218,9 +218,12 @@ const ACTIVATION = [
   {
     key: 'html.dark',
     by: 'user choice',
-    caller: `${SRC}/components/ThemeSwitcher.tsx`,
-    probe: /classList\.toggle\("dark"/,
-    note: 'toggled on the document element and persisted',
+    // GE-143-013 moved the toggle out of ThemeSwitcher and into applyTheme, so
+    // the pre-hydration script, the click path and the OS-change listener stop
+    // holding three copies of the same boolean. The probe follows the code.
+    caller: `${SRC}/lib/a11y/theme-resolution.ts`,
+    probe: /classList\.toggle\(DARK_CLASS/,
+    note: 'resolved by resolveTheme, stamped on the document element and persisted',
   },
   {
     key: ':root[data-density="compact"]',
@@ -260,8 +263,8 @@ const ACTIVATION = [
   {
     key: 'html.dark @media (prefers-contrast: more)',
     by: 'operating system + user choice',
-    caller: `${SRC}/components/ThemeSwitcher.tsx`,
-    probe: /classList\.toggle\("dark"/,
+    caller: `${SRC}/lib/a11y/theme-resolution.ts`,
+    probe: /classList\.toggle\(DARK_CLASS/,
     note: 'high contrast, dark',
   },
   {

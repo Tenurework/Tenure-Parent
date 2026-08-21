@@ -15,6 +15,7 @@ import {
 } from "@tenure/provisioning"
 
 import { mutationForTransition, planMutation } from "./aws/mutate"
+import { purgeFinalitySentence } from "./purge-finality"
 import { riskDigest, type HighRisk } from "../components/states"
 
 /**
@@ -230,9 +231,27 @@ export function riskOf(
     ]
       .filter(Boolean)
       .join(" "),
-    reversibility: oneWay
-      ? `IRREVERSIBLE. No path back to a serving state exists from ${to}.`
-      : `Reversible. A serving state is reachable again from ${to}.`,
+    /*
+     * GE-103-019. The lifecycle half and the CONTENT half, in that order.
+     *
+     * "No path back to a serving state" is a statement about the transition
+     * graph. It is compatible with "and the data is on a snapshot somebody can
+     * restore", which for a purge is false — so the second sentence says what
+     * is true of the tenant's records, and `purgeFinalitySentence` returns ""
+     * for every destination where the question does not arise.
+     *
+     * Appended, never prepended: `DangerZone.classifyConsequence` reads the
+     * first word of this string and throws on anything that is neither
+     * IRREVERSIBLE nor Reversible.
+     */
+    reversibility: [
+      oneWay
+        ? `IRREVERSIBLE. No path back to a serving state exists from ${to}.`
+        : `Reversible. A serving state is reachable again from ${to}.`,
+      purgeFinalitySentence(to),
+    ]
+      .filter(Boolean)
+      .join(" "),
   }
 }
 

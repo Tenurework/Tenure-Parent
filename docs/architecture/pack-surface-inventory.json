@@ -467,6 +467,17 @@
       "experience": "tenant",
       "app": "apps/web",
       "kind": "api",
+      "url": "/api/ai/correction",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/ai/correction/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
       "url": "/api/ai/draft",
       "methods": [
         "POST"

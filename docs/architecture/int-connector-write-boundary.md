@@ -10,7 +10,7 @@ Nothing here is asserted. Ownership is read from `tools/ownership-map.mjs`, the
 map `tests/architecture/ownership.test.mjs` already enforces; the model list is
 read from `apps/web/prisma/schema.prisma`; the writes are read from the files themselves.
 
-**28 modules in the plane · 2 owning domain(s) · 52 models in the schema · 2 of them owned by the plane · 3 write(s) from inside the plane · 0 violation(s).**
+**32 modules in the plane · 2 owning domain(s) · 52 models in the schema · 2 of them owned by the plane · 3 write(s) from inside the plane · 0 violation(s).**
 
 ## 1. The plane, and the domain that owns each module
 
@@ -21,6 +21,7 @@ provider signature header off the request. Test files are excluded — see §6.
 | Module | Owning domain | In the plane because |
 |---|---|---|
 | `apps/web/src/app/api/ai/chat/route.ts` | `integrations` | integrations domain |
+| `apps/web/src/app/api/ai/correction/route.ts` | `integrations` | integrations domain |
 | `apps/web/src/app/api/ai/draft/route.ts` | `integrations` | integrations domain |
 | `apps/web/src/app/api/connections/exceptions/route.ts` | `integrations` | integrations domain |
 | `apps/web/src/app/api/connections/opportunity/route.ts` | `integrations` | integrations domain |
@@ -44,9 +45,12 @@ provider signature header off the request. Test files are excluded — see §6.
 | `apps/web/src/lib/relay/citation-display.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/relay/citation.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/relay/connection-class.ts` | `integrations` | integrations domain |
+| `apps/web/src/lib/relay/correction.ts` | `integrations` | integrations domain |
+| `apps/web/src/lib/relay/evidence-assembly.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/relay/payments-claim-review.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/relay/projection-policy.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/relay/projection-state.ts` | `integrations` | integrations domain |
+| `apps/web/src/lib/relay/provenance-context.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/relay/untrusted-content.ts` | `integrations` | integrations domain |
 
 ## 2. Provider ingress
@@ -72,7 +76,7 @@ only through the typed command bus (§5).
 
 | Where | Model | Call | Verdict |
 |---|---|---|---|
-| `apps/web/src/app/api/payments/provider-events/route.ts:153` | `ProviderEventReceipt` | `create` | owned by the plane |
+| `apps/web/src/app/api/payments/provider-events/route.ts:179` | `ProviderEventReceipt` | `create` | owned by the plane |
 | `apps/web/src/lib/connections/pending-intent.ts:203` | `ConnectionLaunchToken` | `create` | owned by the plane |
 | `apps/web/src/lib/connections/pending-intent.ts:273` | `ConnectionLaunchToken` | `updateMany` | owned by the plane |
 
@@ -111,4 +115,4 @@ what a plane module may READ is a tenant-data-access question enforced elsewhere
 
 - **No violation.** 3 write(s) issued from inside the integration plane, every one of them to a model the plane owns; 3 write(s) to a plane-owned model anywhere in the tree, every one of them from inside the plane; no raw SQL in the plane; every plane module owned by exactly one domain.
 - **0 write(s) to a plane-owned model from outside the plane.**
-- **Ownership is derived, not declared here.** 28 plane modules, 0 of them owned by no domain.
+- **Ownership is derived, not declared here.** 32 plane modules, 0 of them owned by no domain.

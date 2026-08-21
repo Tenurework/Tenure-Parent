@@ -1,6 +1,7 @@
 import type { AccessState } from "@tenure/identity"
 
 import { evaluate, type Decision, type Fact } from "./evaluate"
+import { SHIPPED_POLICY_ARCHIVE } from "./policy-archive"
 import {
   compilePolicyOrThrow,
   type AttributeCatalog,
@@ -41,12 +42,19 @@ export const TENANT_ENTRY_CATALOG: AttributeCatalog = {
     // them, so anything older than a few minutes did not come from this
     // request and should not be decided with.
     maxAgeMs: 5 * 60 * 1000,
+    // Computed by `AFFILIATION_STATUS` below from the membership rows: the
+    // same rows produce the same status every time, which is what makes it
+    // decidable at all (IER-070-006).
+    derivation: "DETERMINISTIC_DERIVED",
   },
   "identity.email.verified": {
     id: "identity.email.verified",
     type: "boolean",
     acceptedSourceRoles: ["SYSTEM_OF_RECORD"],
     maxAgeMs: 5 * 60 * 1000,
+    // `User.emailVerified` is a timestamp this platform wrote when the address
+    // was proved. Nothing infers it.
+    derivation: "SOURCE_ASSERTED",
   },
 }
 
@@ -127,6 +135,20 @@ export const TENANT_ENTRY_POLICY: EligibilityPolicy = {
 export const COMPILED_TENANT_ENTRY_POLICY = compilePolicyOrThrow(
   TENANT_ENTRY_POLICY,
   TENANT_ENTRY_CATALOG,
+)
+
+/**
+ * IER-070-009 — archived at import, under its own activation instant.
+ *
+ * Registration happens here rather than at a call site because a version this
+ * build can DECIDE with must be a version this build can EXPLAIN, and any step
+ * between the two is a step somebody skips. `activeFrom` is used as the
+ * archival instant rather than a wall clock: two processes running this build
+ * hold identical archives, and this module may not read a clock.
+ */
+export const ARCHIVED_TENANT_ENTRY_POLICY = SHIPPED_POLICY_ARCHIVE.register(
+  COMPILED_TENANT_ENTRY_POLICY,
+  TENANT_ENTRY_POLICY.activeFrom,
 )
 
 /** How `AccessState` reads as an affiliation fact. */

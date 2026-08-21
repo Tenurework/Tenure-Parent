@@ -497,6 +497,17 @@ export interface RiskConfirmation {
  */
 export const CONFIRM_TARGET_FIELD = "confirmTarget"
 export const RISK_DIGEST_FIELD = "riskDigest"
+/**
+ * STUDIO-020-008 — the operator policy revision the surface was rendered under.
+ *
+ * Here rather than in `lib/step-up` beside the check that reads it, and the
+ * reason is a bundle rather than a preference: `AdvanceControls` is a client
+ * component, and `lib/step-up` imports `lib/authorize`, which imports the whole
+ * `OPERATOR_GRANTS` table. Importing the constant from there would ship the
+ * console's entire permission model to every browser that renders a lifecycle
+ * button. Its two siblings above are already here for the same audience.
+ */
+export const POLICY_REVISION_FIELD = "policyRevision"
 
 /**
  * A digest over exactly the five facts that were rendered.

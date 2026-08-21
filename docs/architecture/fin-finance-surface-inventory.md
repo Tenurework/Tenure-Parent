@@ -12,11 +12,11 @@ node tools/fin-finance-surface.mjs --check   # fail if it is stale
 ## What was measured
 
 - Roots scanned for `.ts`/`.tsx`/`.mjs`: `apps/web/src`, `apps/web/e2e`, `apps/system-studio/src`, `apps/system-studio/e2e`, `packages`, `modules`.
-- Finance surface: **125 files** — 64 source, 55 unit/integration test, 6 e2e.
-- Facet hits (a file can match several): budget 9 · expense 3 · ledger 13 · payment 62 · cost 39 · finance 18.
+- Finance surface: **138 files** — 70 source, 62 unit/integration test, 6 e2e.
+- Facet hits (a file can match several): budget 9 · expense 5 · ledger 13 · payment 73 · cost 39 · finance 18.
 - Finance-bearing tables in `apps/web/prisma/schema.prisma`: **10**.
 - Bible §3.2 canonical accounting objects present as tables: **0 of 20** — none. A further 1 (`Account`) has its name taken by an unrelated model, which is a migration hazard and is not coverage.
-- Capability claims: **34** — 13 TRUE, 18 SCOPED, 3 OVERSTATED, 0 UNADJUDICATED.
+- Capability claims: **36** — 13 TRUE, 20 SCOPED, 3 OVERSTATED, 0 UNADJUDICATED.
 
 ## A. The finance surface
 
@@ -66,6 +66,7 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/app/api/ai/chat/model-budget.test.ts` | tenant | test | budget |
 | `apps/web/src/app/api/jobs/payments-version-watch/route.test.ts` | tenant | test | payment |
 | `apps/web/src/app/api/jobs/payments-version-watch/route.ts` | tenant | source | payment |
+| `apps/web/src/app/api/payments/provider-events/route.test.ts` | tenant | test | payment |
 | `apps/web/src/app/api/payments/provider-events/route.ts` | tenant | source | payment |
 | `apps/web/src/app/api/templates/budget/route.ts` | tenant | source | budget |
 | `apps/web/src/app/api/templates/budget/target-spread.test.ts` | tenant | test | budget |
@@ -76,7 +77,10 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/components/finance/LedgerDrawer.tsx` | tenant | source | ledger, finance |
 | `apps/web/src/components/finance/PortfolioSankey.tsx` | tenant | source | finance |
 | `apps/web/src/components/finance/ReimbursementForm.tsx` | tenant | source | expense, finance |
+| `apps/web/src/components/payments/MaskedNote.tsx` | tenant | source | payment |
 | `apps/web/src/lib/config/payment-mode.test.ts` | tenant | test | payment |
+| `apps/web/src/lib/eligibility/receipt.test.ts` | tenant | test | expense |
+| `apps/web/src/lib/eligibility/receipt.ts` | tenant | source | expense |
 | `apps/web/src/lib/finance-integrity.test.ts` | tenant | test | finance |
 | `apps/web/src/lib/finance-tie-out.test.ts` | tenant | test | finance |
 | `apps/web/src/lib/finance.test.ts` | tenant | test | finance |
@@ -86,6 +90,9 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/lib/payments/delegation-expiry-wired.test.ts` | tenant | test | payment |
 | `apps/web/src/lib/payments/financial-redaction.ts` | tenant | source | payment, finance |
 | `apps/web/src/lib/payments/ledger-attribution.itest.ts` | tenant | test | ledger, payment |
+| `apps/web/src/lib/payments/masked-display-wired.test.tsx` | tenant | test | payment |
+| `apps/web/src/lib/payments/masked-display.test.ts` | tenant | test | payment |
+| `apps/web/src/lib/payments/masked-display.ts` | tenant | source | payment |
 | `apps/web/src/lib/payments/movement-gate.ts` | tenant | source | payment |
 | `apps/web/src/lib/payments/prompt-redaction.test.ts` | tenant | test | payment |
 | `apps/web/src/lib/relay/payments-claim-review.ts` | tenant | source | payment |
@@ -135,6 +142,12 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `packages/payments/src/liability.ts` | shared | source | payment |
 | `packages/payments/src/limits.test.ts` | shared | test | payment |
 | `packages/payments/src/limits.ts` | shared | source | payment |
+| `packages/payments/src/movement-commands.test.ts` | shared | test | payment |
+| `packages/payments/src/movement-commands.ts` | shared | source | payment |
+| `packages/payments/src/payment-order-state.test.ts` | shared | test | payment |
+| `packages/payments/src/payment-order-state.ts` | shared | source | payment |
+| `packages/payments/src/payout-commands.test.ts` | shared | test | payment |
+| `packages/payments/src/payout-commands.ts` | shared | source | payment |
 | `packages/payments/src/posting.test.ts` | shared | test | ledger, payment |
 | `packages/payments/src/posting.ts` | shared | source | ledger, payment |
 | `packages/payments/src/prohibited-claims-content-review.test.ts` | shared | test | payment |
@@ -227,6 +240,8 @@ Every term from the Bible's capability vocabulary uttered anywhere in the surfac
 | `packages/payments/src/funds-flow.ts` | legal entity | 1 | SCOPED | Quotes the Payments Bible on direct flow. Describes the intended arrangement, claims no model. |
 | `packages/payments/src/high-risk-actions.ts` | legal entity | 1 | SCOPED | One occurrence, in the module header quoting Bible §22's enumeration of what an audit event carries. The slot behind the word is real — `legalEntity` is one of the 18 `EVIDENCE_FIELDS`, and a value supplied under that name is carried into the package and into its sha256 digest even when the class did not ask for it. But it is in neither `ALWAYS` nor any of the six `EVIDENCE_REQUIREMENTS`, so no high-risk action is ever reported incomplete for want of one, and the module never resolves, validates or looks one up. What a caller would have to hand it is the bare `legalEntityId` string on `PaymentsFundsFlowConfig` (`apps/web/prisma/schema.prisma`); no `LegalEntity` model exists. The term names a field the evidence package will carry if it is given one, not an entity this platform models. FIN-000-002. |
 | `packages/payments/src/limits.ts` | legal entity | 1 | SCOPED | One sentence of a doc comment on `recipientKey`, explaining that `null` means a movement between two dimensions of ONE legal entity rather than a payment to somebody. It names the boundary the null case sits inside; it does not claim this package models legal entities, and nothing here holds one. PAY-000-004. |
+| `packages/payments/src/movement-commands.test.ts` | legal entity | 2 | SCOPED | PAY-080-001. Exercises the classification the source performs rather than asserting it: a destination different from the source gives INTERCOMPANY_TRANSFER with requiresIntercompanyPolicy true and providerCallPermitted false, a whitespace-padded destination does NOT become intercompany, a null destination reads as no second entity rather than a different one, a blank source is refused (movement-command-source-unreadable), and an internal kind naming an outside beneficiary is refused. All of that is real behaviour of packages/payments/src/movement-commands.ts. SCOPED, tracking the verdict on the source below, because the entity this file supplies is the literal string inst_rochester - an institution id - so what its header calls a balanced journal inside one legal entity and a due-to/due-from across two is proven at the granularity of two ids the test hands in, not of two legal entities this platform models. FIN-000-002. |
+| `packages/payments/src/movement-commands.ts` | legal entity | 5 | SCOPED | PAY-080-001. The strongest legal-entity claim in this package, and still narrower than the word. The boundary genuinely DRIVES behaviour instead of decorating a comment: source !== destination is the entire INTERCOMPANY_TRANSFER branch, it is what sets requiresIntercompanyPolicy true and withholds providerCallPermitted, and a blank source returns decided false rather than defaulting to internal - an unclassified movement is not an internal one by default. What the module never does is model, resolve or validate an entity. sourceLegalEntityId is an opaque string, and the only operations performed on it in the file are trim, a length check and inequality. No LegalEntity model exists: `apps/web/prisma/schema.prisma` carries one bare legalEntityId String on PaymentsFundsFlowConfig with no relation, and the one production caller passes approval.institutionId as the source and defaults the destination to that same value (`apps/web/src/app/(app)/approvals/actions.ts`). So what is compared is two INSTITUTION ids standing in for legal-entity identity - two institutions under one legal owner classify as intercompany, and one legal owner spanning two institutions never does. SCOPED for that substitution rather than TRUE, and not OVERSTATED because the module claims no entity model and every unreadable case fails closed. FIN-000-002. |
 | `packages/payments/src/posting.ts` | chart-of-accounts | 1 | SCOPED | `/** Chart-of-accounts code. Stable; the journal is keyed on it. */` on `PostingLine.account`. The second sentence is TRUE and this is the file that earns it: the four codes are declared here as constants, `POSTING_TEMPLATES` names them per side, `buildJournal` refuses a journal that does not balance across them, and `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts` takes the account off the template rather than choosing one. The first sentence is the scoped half — the chart is four exported strings in a payments module, versioned by nothing, held by no table and configurable by no tenant, where Bible §12/§3.1 put the chart and its segment hierarchies in tenant configuration. A reader who takes the label at face value will expect a chart to exist; four constants is the whole of it. FIN-000-002. |
 | `packages/payments/src/posting.ts` | legal entity | 1 | SCOPED | The header QUOTES Bible §13 — templates 'versioned by legal entity, ledger/book, transaction type, provider flow, currency, tax and effective date' — and attributes it. What POSTING_TEMPLATES actually versions by is effective date and currency; the other five axes do not exist. Attributed, so not a false claim, but a reader skimming it will over-read the code. FIN-000-002. |
 | `packages/payments/src/prohibited-claims.test.ts` | legal entity | 1 | TRUE | The test that proves the rule above fires, using the sentence 'Tenure is not the merchant of record; the tenant legal entity is.' Same subject, and it is exercised rather than asserted. |
@@ -237,6 +252,6 @@ Every term from the Bible's capability vocabulary uttered anywhere in the surfac
 
 ## What this inventory says
 
-The platform has real finance code — 125 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
+The platform has real finance code — 138 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
 
-Of 34 capability claims, 3 are OVERSTATED. They are not marketing copy; they are comments and blocker messages that name objects nobody has built, which is the exact failure this inventory exists to find. Each is cited in the table above with the requirement that would make it true.
+Of 36 capability claims, 3 are OVERSTATED. They are not marketing copy; they are comments and blocker messages that name objects nobody has built, which is the exact failure this inventory exists to find. Each is cited in the table above with the requirement that would make it true.

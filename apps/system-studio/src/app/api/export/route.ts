@@ -2,7 +2,8 @@ import fs from "node:fs"
 import path from "node:path"
 
 import { auth } from "@/lib/auth"
-import { authorizeCommand, decisionLine, type StudioCommand } from "@/lib/authorize"
+import { authorizeCommand, controlPlaneIdentity, decisionLine, type StudioCommand } from "@/lib/authorize"
+import { authenticatedAtOf, dataExportStepUp } from "@/lib/step-up"
 import { newCorrelationId } from "@/lib/api/envelope"
 import { PROBLEM, problemResponse } from "@/lib/api/problem"
 import { bucketPosture } from "@/lib/aws/buckets"
@@ -151,6 +152,37 @@ export async function GET(request: Request): Promise<Response> {
       title: "Not signed in",
       status: 401,
       detail: "Exporting the estate requires an operator session.",
+      instance,
+      correlationId,
+    })
+  }
+
+  /*
+   * STUDIO-020-008 — an export is one of the seven acts the requirement names,
+   * and it is the one that leaves the building. `dataExportStepUp` fires the
+   * `data-export` trigger unconditionally, so a session that authenticated
+   * hours ago may still READ every surface of this console and may not take a
+   * copy of it away.
+   *
+   * Before the surface and format are parsed, so a stale session learns nothing
+   * about which exports exist.
+   */
+  const stepUp = dataExportStepUp(
+    {
+      authenticatedAt: authenticatedAtOf(session),
+      // A GET carries no rendered policy revision. Null is "this surface says
+      // nothing about it", which `stepUpVerdict` does not read as agreement.
+      policyRevisionAtRender: null,
+    },
+    controlPlaneIdentity().environment,
+    new Date(),
+  )
+  if (!stepUp.permitted) {
+    return problemResponse({
+      type: PROBLEM.forbidden,
+      title: "Re-authentication required",
+      status: 403,
+      detail: stepUp.detail,
       instance,
       correlationId,
     })

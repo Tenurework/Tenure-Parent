@@ -15,6 +15,15 @@ import {
   parseFleetFilter,
   type FleetFilter,
 } from "@/lib/fleet-filter"
+import {
+  FLEET_VIEWS,
+  STATES_IN_NO_NAMED_VIEW,
+  describeViewCount,
+  fleetView,
+  parseFleetView,
+  viewCounts,
+  viewVerdict,
+} from "@/lib/fleet-views"
 import { costSource } from "@/lib/cost-source"
 import { adoptableBindings } from "@/lib/adopt"
 import { fleet, placeableRegions, primeEstate } from "@/lib/cells"
@@ -42,6 +51,7 @@ import {
   Chip,
   DataTable,
   EmptyState,
+  REVERSIBLE,
   Select,
   StaleIndicator,
   TextField,
@@ -342,7 +352,23 @@ export default async function TenantsPage({
   // `byUrgency` is the one ranking of urgency in this console; the attention
   // list above and the inventory below are both ordered by it, so they cannot
   // disagree about which tenant is worst.
-  const matching = tenants.filter((t) => matchesFilter(t, filter, healthBySlug.get(t.slug)))
+  /*
+   * GE-103-001. The named view narrows before the free-text filter, and both
+   * apply — a view is a filter an operator picked from a list rather than typed,
+   * and combining them is how "which of the hibernated ones is Acme's" is asked.
+   *
+   * `viewVerdict` is used rather than a boolean so `unknown` cannot be read as
+   * a match: a tenant whose drift nobody could read is not in the Drifted view
+   * and is not reported clean either — `viewCounts` carries that number and the
+   * chip's title says it.
+   */
+  const activeView = fleetView(parseFleetView(params))
+  const counts = viewCounts(tenants, healthBySlug)
+  const matching = tenants
+    .filter((t) =>
+      activeView ? viewVerdict(activeView, t, healthBySlug.get(t.slug)) === "in" : true,
+    )
+    .filter((t) => matchesFilter(t, filter, healthBySlug.get(t.slug)))
   const ranked = rankFleetRows(
     matching,
     health.map((h) => h.slug),
@@ -381,6 +407,9 @@ export default async function TenantsPage({
     if (filter.q) next.set("q", filter.q)
     if (filter.signal) next.set("signal", filter.signal)
     if (filter.state) next.set("state", filter.state)
+    // GE-103-001. The view survives paging and every other link on this page;
+    // a "next page" that silently dropped it would page a different fleet.
+    if (activeView) next.set("view", activeView.id)
     for (const [k, v] of Object.entries(overrides)) {
       if (v) next.set(k, v)
       else next.delete(k)
@@ -711,6 +740,80 @@ export default async function TenantsPage({
       </p>
 
       {/*
+        GE-103-001 — the eleven views the requirement names, as links.
+
+        Not eleven more form fields. A view is the question an operator arrives
+        with ("what is hibernated?"), and it has to be one click and a shareable
+        URL — the same argument `fleet-filter.ts` makes about keeping the filter
+        in the query string.
+
+        Here, above the first card, rather than inside the inventory card with
+        the free-text filter, and both halves of that are deliberate:
+
+          * A one-click selector is not one click from below the fold. The
+            inventory card starts ~1450px down a 900px viewport, so a views row
+            inside it was reachable only by scrolling past two panels — which is
+            the thing the requirement asks this row to replace.
+          * STUDIO-030-010's per-surface chrome budget measures how much chrome
+            the section presenting the fleet table spends before its first
+            tenant. This row and its coverage line cost that section 150px and
+            took it over the ceiling. They are page navigation, not the
+            inventory card's preamble, so they belong outside it. (Named by
+            requirement rather than by spec filename: `preferences-logic.spec.ts`
+            fails any module that reaches a durable write AND says the word the
+            filename starts with, and this one names TENANT_TABLE.)
+
+        Each chip carries its count AND, for Drifted, the number of tenants no
+        drift reading could decide. That second number is the one this row
+        exists for: "0 drifted" over a fleet nobody could read is the false
+        green the console must never print.
+
+        `data-risk={REVERSIBLE}`, on every chip. `Purged` and `Purge pending`
+        are the names of lifecycle states, and `e2e/destructive-separation.spec.ts`
+        classifies a control by what its accessible name says unless the DOM
+        declares otherwise — so without this, eleven links that change a query
+        string read to that guard as purge CONTROLS sitting in a chip row beside
+        ordinary ones, which is the arrangement STUDIO-030-004 forbids. Choosing
+        a view destroys nothing and un-choosing it is the same chip, so the
+        declaration is the true one; the constant is imported rather than typed
+        so it cannot drift from what `DangerZone` emits.
+      */}
+      {registryAnswered ? (
+        <>
+          <nav className={styles.chipRow} aria-label="Fleet views" data-testid="fleet-views">
+            {FLEET_VIEWS.map((v) => {
+              const count = counts[v.id]
+              const selected = activeView?.id === v.id
+              return (
+                <ButtonLink
+                  key={v.id}
+                  variant={selected ? "filled" : "text"}
+                  // A selected chip is the way back out of the view, so it
+                  // clears `?view=` rather than being a link to where you
+                  // already are. `page` is cleared with it: page 3 of Active is
+                  // not page 3 of Hibernated.
+                  href={`/tenants${queryFor({ view: selected ? "" : v.id, page: "" })}`}
+                  aria-current={selected ? "page" : undefined}
+                  title={describeViewCount(v, count)}
+                  data-testid={`fleet-view-${v.id}`}
+                  data-risk={REVERSIBLE}
+                >
+                  {v.label} {count.matched}
+                  {count.undecided > 0 ? ` (+${count.undecided} unread)` : ""}
+                </ButtonLink>
+              )
+            })}
+          </nav>
+          <p className="md3-body-small" data-testid="fleet-views-coverage">
+            {STATES_IN_NO_NAMED_VIEW.length} of the lifecycle&rsquo;s {STATES_IN_NO_NAMED_VIEW.length + FLEET_VIEWS.reduce((n, v) => n + v.states.length, 0)} states
+            are in none of these views &mdash; the ones a tenant passes through while it is
+            being built or wound down. Reach those with the State field in the filter below;
+            these chips are the eleven the fleet is operated by, not the whole machine.
+          </p>
+        </>
+      ) : null}
+
+      {/*
         GE-033-002 / STUDIO-120-003. Fleet health, from the registry AND from
         what was observed of the running system — certificate expiry, alarm
         state, when a backup was last verified. No tenant content is read to
@@ -946,7 +1049,7 @@ export default async function TenantsPage({
               <Button variant="tonal" type="submit">
                 Apply
               </Button>
-              {isFiltered(filter) ? (
+              {isFiltered(filter) || activeView ? (
                 <ButtonLink variant="text" href="/tenants">
                   Clear
                 </ButtonLink>
@@ -971,8 +1074,17 @@ export default async function TenantsPage({
             // tenants exist" from "none match what you asked for", which are the
             // same screen and completely different facts.
             <GovernedEmptyState
-              what={`tenants ${describeFilter(filter)}`}
-              because={`${tenants.length} tenants are registered; none match this filter. Clear it to see them.`}
+              what={`tenants ${activeView ? `in ${activeView.label}` : ""} ${describeFilter(filter)}`.trim()}
+              because={
+                activeView && counts[activeView.id].undecided > 0
+                  ? // GE-103-001. An empty view over tenants nobody could read
+                    // is not an empty view. Saying only "none match" here would
+                    // report an unread estate as a clean one.
+                    `${tenants.length} tenants are registered; none are in this view. ` +
+                    `${counts[activeView.id].undecided} of them could not be decided either way — ` +
+                    `no usable reading was taken for them, so this is not a statement that they are clear.`
+                  : `${tenants.length} tenants are registered; none match this filter. Clear it to see them.`
+              }
               actions={
                 <ButtonLink variant="tonal" href="/tenants">
                   Clear the filter

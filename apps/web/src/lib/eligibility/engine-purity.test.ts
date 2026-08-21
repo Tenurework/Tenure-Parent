@@ -17,7 +17,17 @@ import { join } from "node:path"
  * asserted is textual: that these constructs are not present.
  */
 
-const ENGINE_FILES = ["policy.ts", "evaluate.ts", "tenant-entry.ts"] as const
+const ENGINE_FILES = [
+  "policy.ts",
+  "evaluate.ts",
+  "tenant-entry.ts",
+  // The post-decision path is held to the same rule. An explanation that read a
+  // clock, a model or the network would make the account of a decision differ
+  // from the decision, which is the same defect one step later.
+  "policy-archive.ts",
+  "receipt.ts",
+  "explain.ts",
+] as const
 
 /**
  * Each rule is a pattern and the sentence explaining why the engine may not

@@ -193,7 +193,22 @@ function governanceInput(overrides: Partial<GovernanceInput> = {}): GovernanceIn
     cells: { known: true, value: [CELL] },
     placedCellId: "cell-use1-a",
     tagged: TAGGED,
-    attributed: ["arn:aws:dynamodb:us-east-1:000000000000:table/tenure-simon"],
+    attributed: [
+      "arn:aws:dynamodb:us-east-1:000000000000:table/tenure-simon",
+      "arn:aws:cognito-idp:us-east-1:000000000000:userpool/us-east-1_SIMON1",
+    ],
+    userPools: [
+      {
+        poolId: "us-east-1_SIMON1",
+        detail: {
+          state: "ACTUAL",
+          capability: "cognito-idp:DescribeUserPool" as never,
+          value: { estimatedUsers: 1_842 },
+          asOf: "2026-08-17T00:00:00.000Z",
+          fresh: true,
+        },
+      },
+    ],
     seatLimit: 250,
     environment: "production",
     calendar: changeCalendar({}),
@@ -219,6 +234,56 @@ test.describe("tenantGovernance", () => {
       expect(move.blast.measures).toHaveLength(12)
       expect(move.blast.change.target).toBe("simon")
     }
+  })
+
+  test("the users axis is the count the tenant's own pool reported", () => {
+    for (const move of tenantGovernance(governanceInput()).moves) {
+      const users = move.blast.measures.find((m) => m.dimension === "users")!.reading
+      if (!users.known) throw new Error("expected a users reading")
+      expect(users.value.count).toBe(1_842)
+      expect(users.value.items).toEqual(["us-east-1_SIMON1"])
+    }
+  })
+
+  test("a denied DescribeUserPool makes the users axis a refusal carrying the AWS remedy", () => {
+    const governance = tenantGovernance(
+      governanceInput({
+        userPools: [
+          {
+            poolId: "us-east-1_SIMON1",
+            detail: {
+              state: "DENIED",
+              capability: "cognito-idp:DescribeUserPool" as never,
+              action: "cognito-idp:DescribeUserPool",
+              principal: "arn:aws:sts::000000000000:assumed-role/studio/task",
+              accountId: "000000000000",
+              region: "us-east-1",
+              partition: "aws",
+              errorCode: "AccessDeniedException",
+              minimumStatement: "{}",
+            },
+          },
+        ],
+      }),
+    )
+    const users = governance.moves[0].blast.measures.find((m) => m.dimension === "users")!.reading
+    expect(users.known).toBe(false)
+    if (users.known) throw new Error("unreachable")
+    expect(users.because).toContain("us-east-1_SIMON1 could not be described")
+    expect(users.fix).toContain("cognito-idp:DescribeUserPool")
+  })
+
+  test("a tenant whose estate names no user pool is not reported as having no users", () => {
+    const governance = tenantGovernance(
+      governanceInput({
+        attributed: ["arn:aws:dynamodb:us-east-1:000000000000:table/tenure-simon"],
+        userPools: [],
+      }),
+    )
+    const users = governance.moves[0].blast.measures.find((m) => m.dimension === "users")!.reading
+    expect(users.known).toBe(false)
+    if (users.known) throw new Error("unreachable")
+    expect(users.because).toContain("no user pool is attributed to this tenant")
   })
 
   test("with no calendar declared, every window-bound move is held", () => {

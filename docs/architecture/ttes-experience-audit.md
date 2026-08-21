@@ -18,7 +18,7 @@ It covers the tenant experience only. `apps/system-studio` is the deployer
 experience, audited separately, and TTES-000-001 split the two inventories so a
 claim about one could not be read as a claim about both.
 
-Scope read: **469 files** under `apps/web/src`.
+Scope read: **507 files** under `apps/web/src`.
 
 ## 2. Personas
 
@@ -35,11 +35,11 @@ not distinguish.
 | `OSE_DIRECTOR` | InstitutionRole | `apps/web/prisma/schema.prisma:90` | 17 | `apps/web/src/app/(app)/admin/actions.ts` |
 | `OSE_STAFF` | InstitutionRole | `apps/web/prisma/schema.prisma:91` | 13 | `apps/web/src/app/(app)/admin/actions.ts` |
 | `OSE_ADVISOR` | InstitutionRole | `apps/web/prisma/schema.prisma:92` | 5 | `apps/web/src/app/(app)/admin/actions.ts` |
-| `PRESIDENT` | RoleScope | `apps/web/prisma/schema.prisma:424` | 30 | `apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx` |
+| `PRESIDENT` | RoleScope | `apps/web/prisma/schema.prisma:424` | 31 | `apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx` |
 | `FUNCTIONAL` | RoleScope | `apps/web/prisma/schema.prisma:425` | 9 | `apps/web/src/app/(app)/admin/actions.ts` |
 | `MEMBER` | RoleScope | `apps/web/prisma/schema.prisma:426` | 5 | `apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx` |
 | `SHADOW` | AssignmentStatus | `apps/web/prisma/schema.prisma:431` | 26 | `apps/web/src/app/(app)/admin/actions.ts` |
-| `ACTIVE` | AssignmentStatus | `apps/web/prisma/schema.prisma:432` | 59 | `apps/web/src/app/(app)/admin/actions.ts` |
+| `ACTIVE` | AssignmentStatus | `apps/web/prisma/schema.prisma:432` | 61 | `apps/web/src/app/(app)/admin/actions.ts` |
 | `ALUMNI` | AssignmentStatus | `apps/web/prisma/schema.prisma:433` | 8 | `apps/web/src/app/(app)/admin/actions.ts` |
 
 ## 3. Themes
@@ -59,16 +59,16 @@ probe.
 | Scope | globals.css | Declares | Orphans | Entered by | Caller | Caller still matches |
 | --- | --- | --- | --- | --- | --- | --- |
 | `:root` | 24 | 217 | — | default | — | n/a |
-| `:root[data-density="compact"]` | 373 | 5 | — | user choice | `apps/web/src/components/DensitySwitcher.tsx` | yes |
-| `html.dark` | 385 | 69 | — | user choice | `apps/web/src/components/ThemeSwitcher.tsx` | yes |
-| `html.nav-collapsed` | 474 | 1 | — | user choice | `apps/web/src/components/shell/NavDrawerToggle.tsx` | yes |
-| `:root @media (max-width: 700px)` | 487 | 1 | — | viewport | — | n/a |
-| `html.nav-collapsed @media (max-width: 700px)` | 493 | 1 | — | viewport | `apps/web/src/components/shell/NavDrawerToggle.tsx` | yes |
-| `:root @media (prefers-contrast: more)` | 594 | 10 | — | operating system | — | n/a |
-| `html.dark @media (prefers-contrast: more)` | 606 | 10 | — | operating system + user choice | `apps/web/src/components/ThemeSwitcher.tsx` | yes |
-| `:root` | 642 | 2 | — | default | — | n/a |
-| `:root @media (max-width: 900px)` | 771 | 1 | — | viewport | — | n/a |
-| `:root` | 785 | 7 | — | default | — | n/a |
+| `:root[data-density="compact"]` | 386 | 5 | — | user choice | `apps/web/src/components/DensitySwitcher.tsx` | yes |
+| `html.dark` | 398 | 69 | — | user choice | `apps/web/src/lib/a11y/theme-resolution.ts` | yes |
+| `html.nav-collapsed` | 487 | 1 | — | user choice | `apps/web/src/components/shell/NavDrawerToggle.tsx` | yes |
+| `:root @media (max-width: 700px)` | 500 | 1 | — | viewport | — | n/a |
+| `html.nav-collapsed @media (max-width: 700px)` | 506 | 1 | — | viewport | `apps/web/src/components/shell/NavDrawerToggle.tsx` | yes |
+| `:root @media (prefers-contrast: more)` | 607 | 10 | — | operating system | — | n/a |
+| `html.dark @media (prefers-contrast: more)` | 619 | 10 | — | operating system + user choice | `apps/web/src/lib/a11y/theme-resolution.ts` | yes |
+| `:root` | 710 | 2 | — | default | — | n/a |
+| `:root @media (max-width: 900px)` | 839 | 1 | — | viewport | — | n/a |
+| `:root` | 853 | 7 | — | default | — | n/a |
 
 ### Token integrity
 
@@ -79,8 +79,8 @@ assigns inline — `Avatar.tsx` computes `--avatar-bg` per person, and reading
 the stylesheet alone would report it missing.
 
 - Declared: **236**
-- Distinct tokens referenced without a fallback: **164**
-- Referenced but declared nowhere: **0**
+- Distinct tokens referenced without a fallback: **165**
+- Referenced but declared nowhere: **1** — `--space-N`
 
 ## 4. Viewports
 
@@ -119,7 +119,7 @@ have at least one responsive declaration somewhere in their closure. The other
 | `apps/web/src/app/(app)/admin/page.tsx` | 52 | yes | yes | `apps/web/src/components/charts/LiveStats.tsx` |
 | `apps/web/src/app/(app)/admin/payments/page.tsx` | 31 | yes | yes | `apps/web/src/components/admin/FundsFlowForm.tsx` |
 | `apps/web/src/app/(app)/admin/people/page.tsx` | 40 | yes | yes | `apps/web/src/app/(app)/admin/people/page.tsx` |
-| `apps/web/src/app/(app)/approvals/[id]/page.tsx` | 49 | yes | yes | `apps/web/src/app/(app)/approvals/[id]/page.tsx` |
+| `apps/web/src/app/(app)/approvals/[id]/page.tsx` | 51 | yes | yes | `apps/web/src/app/(app)/approvals/[id]/page.tsx` |
 | `apps/web/src/app/(app)/approvals/new/page.tsx` | 34 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
 | `apps/web/src/app/(app)/approvals/page.tsx` | 23 | yes | yes | `apps/web/src/app/(app)/approvals/page.tsx` |
 | `apps/web/src/app/(app)/calendar/[id]/page.tsx` | 25 | yes | yes | `apps/web/src/app/(app)/calendar/[id]/page.tsx` |
@@ -148,7 +148,7 @@ have at least one responsive declaration somewhere in their closure. The other
 | `apps/web/src/app/(app)/resources/[slug]/page.tsx` | 20 | yes | yes | `apps/web/src/app/(app)/resources/[slug]/page.tsx` |
 | `apps/web/src/app/(app)/resources/page.tsx` | 36 | yes | yes | `apps/web/src/components/ResourcesBrowser.tsx` |
 | `apps/web/src/app/(app)/search/page.tsx` | 35 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
-| `apps/web/src/app/(app)/settings/page.tsx` | 47 | yes | yes | `apps/web/src/components/ProfileImageEditor.tsx` |
+| `apps/web/src/app/(app)/settings/page.tsx` | 49 | yes | yes | `apps/web/src/components/ProfileImageEditor.tsx` |
 | `apps/web/src/app/page.tsx` | 1 | redirect only | n/a | — |
 | `apps/web/src/app/signin/page.tsx` | 15 | yes | **no** | — |
 
@@ -181,7 +181,7 @@ accessibility, and §7 says what a static reader cannot reach.
 - **0 token scope(s) have no entry in the activation map**.
 - **0 activation caller(s) no longer match their probe**.
 - **1 of 38 rendering tenant pages carry no responsive declaration anywhere in their closure**: `apps/web/src/app/signin/page.tsx`. Read precisely: no breakpoint CONDITIONS anything on those pages. It does not follow that they break on a phone — a fluid `w-full max-w-md` adapts without a prefix, and the sign-in card does exactly that — only that nothing about them changes with the viewport, and that no run of this repository's tests has ever looked at them narrow.
-- **0 token(s) are referenced without a fallback and declared nowhere.**
+- **1 token(s) are referenced without a fallback and declared nowhere.**
 - **2 static accessibility hit(s)** across 5 checks.
 - **High contrast has no in-product switch.** The `prefers-contrast: more` overrides are entered by the operating system only; a user on a machine that cannot express the preference cannot reach them from the product. This is a product gap, not a defect in the CSS.
 

@@ -1583,6 +1583,45 @@ function effectiveTags(
  * because a test that drove a private helper would stay green on the day the
  * caller stopped calling it.
  */
+/**
+ * `DescribeUserPool` for a named set of pools, and nothing else.
+ *
+ * STUDIO-060-004 needs one field — `EstimatedNumberOfUsers` — for the pools a
+ * tenant is attributed, and `cognitoReadings()` is the wrong instrument for
+ * that: it lists every pool in the region and then reads MFA configuration,
+ * app clients, domains and the operator roster for each. That is the right
+ * load for the identity surface and an unreasonable one for a tenant page that
+ * wants a count.
+ *
+ * So this is the same reader, over ids the caller already resolved — not a
+ * second description of a pool. The per-pool result is an `AwsRead`, so a
+ * denial arrives as a denial rather than as an absent pool.
+ */
+export async function userPoolDetails(
+  poolIds: readonly string[],
+  supplied?: AwsGateway,
+  options: { now?: () => Date } = {},
+): Promise<readonly { poolId: string; detail: AwsRead<PoolDetail> }[]> {
+  if (poolIds.length === 0) return []
+  const gw = supplied ?? liveGateway()
+  const now = options.now ?? (() => new Date())
+  const identity = await resolveIdentity(supplied, { now })
+  const denial = denialContextFrom(identity)
+
+  const out: { poolId: string; detail: AwsRead<PoolDetail> }[] = []
+  for (let start = 0; start < poolIds.length; start += POOL_CONCURRENCY) {
+    const batch = poolIds.slice(start, start + POOL_CONCURRENCY)
+    const read = await Promise.all(
+      batch.map(async (poolId) => ({
+        poolId,
+        detail: await readPoolDetail(gw, poolId, { now, denial }),
+      })),
+    )
+    out.push(...read)
+  }
+  return out
+}
+
 export async function cognitoReadings(
   supplied?: AwsGateway,
   options: { now?: () => Date } = {},

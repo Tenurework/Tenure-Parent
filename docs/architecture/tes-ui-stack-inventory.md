@@ -16,8 +16,8 @@ computes the second and §8 names the rest. Both applications with a user interf
 reading a number here as a statement about only the tenant product would be wrong, which is why
 every table is per application.
 
-* **Tenant experience** — `apps/web`, 313 shipping source files scanned.
-* **Operator plane** — `apps/system-studio`, 240 shipping source files scanned.
+* **Tenant experience** — `apps/web`, 330 shipping source files scanned.
+* **Operator plane** — `apps/system-studio`, 244 shipping source files scanned.
 
 ## 2. The concerns the requirement names
 
@@ -31,7 +31,7 @@ counting.
 | Concern | Implementations | Vendor packages | Call sites | Migration risk |
 | --- | --- | --- | --- | --- |
 | UI stack | 1 | `next` ^15.1.0, `react` ^19.0.0, `react-dom` ^19.0.0 | — | LOW — one module, contained blast radius |
-| Component library | 24 | `react-aria-components` ^1.19.0, `class-variance-authority` ^0.7.1 | 75 | HIGH — the concern is spread across the tree, so migration is a survey before it is a change |
+| Component library | 25 | `react-aria-components` ^1.19.0, `class-variance-authority` ^0.7.1 | 76 | HIGH — the concern is spread across the tree, so migration is a survey before it is a change |
 | CSS strategy | 1 | `tailwindcss` ^3.4.0, `postcss` ^8.4.0, `autoprefixer` ^10.4.0 | 1 | LOW — one module, contained blast radius |
 | Font | 1 | none — owned | 1 | LOW — one module, contained blast radius |
 | Icon set | 3 | `@phosphor-icons/react` ^2.1.10, `lucide-react` ^1.24.0 | 73 | MEDIUM — a handful of implementations to reconcile first |
@@ -63,7 +63,7 @@ counting.
 Where each concern is implemented, in full:
 
 * **web / UI stack** — `apps/web/src/app/layout.tsx`
-* **web / Component library** — `apps/web/src/components/BackButton.tsx`, `apps/web/src/components/DraftAssist.tsx`, `apps/web/src/components/EmailLink.tsx`, `apps/web/src/components/OrgRecordHeader.tsx`, `apps/web/src/components/ai/AIProvider.tsx`, `apps/web/src/components/brand/TenureLogo.tsx`, `apps/web/src/components/charts/ChartEmpty.tsx`, `apps/web/src/components/charts/ChartLegend.tsx`, `apps/web/src/components/charts/ChartTooltip.tsx`, `apps/web/src/components/charts/LineAreaChart.tsx`, `apps/web/src/components/documents/DocContentView.tsx`, `apps/web/src/components/shell/SideNav.tsx`, `apps/web/src/components/ui/Avatar.tsx`, `apps/web/src/components/ui/Badge.tsx`, `apps/web/src/components/ui/Bento.tsx`, `apps/web/src/components/ui/Button.tsx`, `apps/web/src/components/ui/Card.tsx`, `apps/web/src/components/ui/ConfirmDialog.tsx`, `apps/web/src/components/ui/ConfirmInlineSubmit.tsx`, `apps/web/src/components/ui/EmptyState.tsx`, `apps/web/src/components/ui/Overlay.tsx`, `apps/web/src/components/ui/PageHeader.tsx`, `apps/web/src/components/ui/Select.tsx`, `apps/web/src/components/ui/StateSurface.tsx`
+* **web / Component library** — `apps/web/src/components/BackButton.tsx`, `apps/web/src/components/DraftAssist.tsx`, `apps/web/src/components/EmailLink.tsx`, `apps/web/src/components/OrgRecordHeader.tsx`, `apps/web/src/components/ai/AIProvider.tsx`, `apps/web/src/components/brand/TenureLogo.tsx`, `apps/web/src/components/charts/ChartEmpty.tsx`, `apps/web/src/components/charts/ChartLegend.tsx`, `apps/web/src/components/charts/ChartTooltip.tsx`, `apps/web/src/components/charts/LineAreaChart.tsx`, `apps/web/src/components/documents/DocContentView.tsx`, `apps/web/src/components/shell/SideNav.tsx`, `apps/web/src/components/ui/Avatar.tsx`, `apps/web/src/components/ui/Badge.tsx`, `apps/web/src/components/ui/Bento.tsx`, `apps/web/src/components/ui/Button.tsx`, `apps/web/src/components/ui/Card.tsx`, `apps/web/src/components/ui/ConfirmDialog.tsx`, `apps/web/src/components/ui/ConfirmInlineSubmit.tsx`, `apps/web/src/components/ui/EmptyState.tsx`, `apps/web/src/components/ui/Overlay.tsx`, `apps/web/src/components/ui/PageHeader.tsx`, `apps/web/src/components/ui/Select.tsx`, `apps/web/src/components/ui/StateSurface.tsx`, `apps/web/src/components/ui/TextField.tsx`
 * **web / CSS strategy** — `apps/web/src/app/globals.css`
 * **web / Font** — `apps/web/src/app/globals.css`
 * **web / Icon set** — `apps/web/src/app/apple-icon.tsx`, `apps/web/src/components/brand/TenureLogo.tsx`, `apps/web/src/components/ui/icons.tsx`
@@ -110,7 +110,7 @@ declared and the number of shipping modules that import it.
 
 | App | Package | Declared | Concern | Importing modules |
 | --- | --- | --- | --- | --- |
-| web | `next` | ^15.1.0 | UI stack | 111 |
+| web | `next` | ^15.1.0 | UI stack | 112 |
 | web | `react` | ^19.0.0 | UI stack | 61 |
 | web | `react-dom` | ^19.0.0 | UI stack | 2 |
 | web | `react-aria-components` | ^1.19.0 | Component library | 8 |
@@ -135,7 +135,7 @@ of modules on each side, not a similarity claim — §4.3 is where similarity is
 | Concern | Tenant experience | Operator plane |
 | --- | --- | --- |
 | UI stack | 1 | 1 |
-| Component library | 24 | 13 |
+| Component library | 25 | 13 |
 | CSS strategy | 1 | 2 |
 | Font | 1 | 15 |
 | Icon set | 3 | 3 |
@@ -199,8 +199,8 @@ of how much of the surface a token change does not reach.
 
 | App | Signal | Occurrences | Files | First example |
 | --- | --- | --- | --- | --- |
-| web | literal-colour | 36 | 8 | `#198052` |
-| web | arbitrary-length-in-a-class | 282 | 65 | `text-[13px]` |
+| web | literal-colour | 37 | 9 | `#198052` |
+| web | arbitrary-length-in-a-class | 283 | 66 | `text-[13px]` |
 | web | inline-style-object | 97 | 38 | `style={{` |
 | studio | literal-colour | — | — | — |
 | studio | arbitrary-length-in-a-class | — | — | — |

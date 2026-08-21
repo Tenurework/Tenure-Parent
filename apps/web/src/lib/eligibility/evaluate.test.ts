@@ -14,18 +14,21 @@ const CATALOG: AttributeCatalog = {
     members: ["ACTIVE", "PENDING", "SUSPENDED", "REVOKED", "ENDED"],
     acceptedSourceRoles: ["SYSTEM_OF_RECORD", "AUTHORITATIVE", "SELF_ATTESTED"],
     maxAgeMs: 3_600_000,
+    derivation: "SOURCE_ASSERTED",
   },
   "affiliation.interval": {
     id: "affiliation.interval",
     type: "interval",
     acceptedSourceRoles: ["SYSTEM_OF_RECORD"],
     maxAgeMs: 3_600_000,
+    derivation: "SOURCE_ASSERTED",
   },
   "training.completed": {
     id: "training.completed",
     type: "boolean",
     acceptedSourceRoles: ["SYSTEM_OF_RECORD"],
     maxAgeMs: 3_600_000,
+    derivation: "SOURCE_ASSERTED",
   },
 }
 

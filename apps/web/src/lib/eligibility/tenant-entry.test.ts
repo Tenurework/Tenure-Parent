@@ -118,9 +118,14 @@ describe("tenure.tenant-entry.v1", () => {
     expect(route).toContain("accessState: access.state")
     expect(route).toContain("emailVerifiedAt: me?.emailVerified ?? null")
     expect(route).toContain("tenantCapabilities: enabledModules")
-    expect(route).toContain("eligibility: {")
-    expect(route).toContain("outcome: eligibility.outcome")
-    expect(route).toContain("policyDigest: eligibility.receipt.policyDigest")
+    // IER-070-010 — the decision reaches the response through the END_USER
+    // explanation layer, not as the raw decision. The digest and the engine's
+    // reason codes are asserted ABSENT here on purpose: this route answers to
+    // the subject, and §12.3 gives the subject a disposition and a next step.
+    expect(route).toContain('from "@/lib/eligibility/explain"')
+    expect(route).toContain('eligibility: explainDecision(eligibility, "END_USER")')
+    expect(route).not.toContain("policyDigest: eligibility.receipt.policyDigest")
+    expect(route).not.toContain("reasonCodes: eligibility.reasonCodes")
   })
 
   it("carries a receipt naming the policy version and the sources read", () => {

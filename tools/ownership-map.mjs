@@ -401,6 +401,15 @@ const DOMAINS = [
       // this domain's subject; the budget the charge lands against is not.
       'apps/web/src/lib/payments/',
       'apps/web/src/app/api/payments/',
+      // PAY-200-003. The rendering half of the masking rule: `MaskedNote`
+      // prints a note whose financial identifiers `maskForDisplay` has already
+      // removed, together with the line saying so. Here rather than under the
+      // surface that mounts it — the approvals detail page — because what it
+      // renders is a payment identifier and what it enforces is that the
+      // notice travels with it; approvals decides neither. A directory prefix
+      // rather than the one file, matching lib/payments/ beside it, so the
+      // next masked-payment component is owned on the day it is written.
+      'apps/web/src/components/payments/',
     ],
   },
 ]

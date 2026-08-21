@@ -227,7 +227,25 @@ jest.mock("./registry", () => {
 
 /** Who is signed in. Set per test. */
 let signedInAs: string | undefined = "lead@tenure.example"
-jest.mock("./auth", () => ({ auth: async () => ({ user: { email: signedInAs } }) }))
+/**
+ * How long ago they authenticated, in seconds. Set per test.
+ *
+ * STUDIO-020-008 made this part of the session rather than a detail of it: a
+ * lifecycle move is a step-up trigger, so a session with no authentication time
+ * — which is what this mock used to return — is refused before the gate reads
+ * the tenant at all. Four of the assertions below went red when the check
+ * landed, which is the proof that it is on the real path.
+ */
+let authenticatedSecondsAgo = 60
+jest.mock("./auth", () => {
+  const { AUTHENTICATED_AT_CLAIM } = require("./step-up")
+  return {
+    auth: async () => ({
+      user: { email: signedInAs },
+      [AUTHENTICATED_AT_CLAIM]: new Date(Date.now() - authenticatedSecondsAgo * 1000).toISOString(),
+    }),
+  }
+})
 
 jest.mock("next/cache", () => ({ revalidatePath: () => {} }))
 
@@ -239,7 +257,9 @@ jest.mock("next/navigation", () => ({
 }))
 
 import { advanceState, composeTenant } from "../app/tenants/actions"
-import { riskDigest } from "../components/states"
+import { POLICY_REVISION } from "./authorize"
+import { STEP_UP_MAX_AGE_SECONDS } from "./step-up"
+import { POLICY_REVISION_FIELD, riskDigest } from "../components/states"
 import { NO_RETAINED_AWS_OBSERVATION, observedFor, riskOf } from "./tenant-state"
 
 const registry = jest.requireMock("./registry") as {
@@ -527,6 +547,96 @@ describe("the high-risk confirmation is a gate, through the real action", () => 
 
     expect(result.error).toBeUndefined()
     expect(registry.__calls).toContain(`advanceTenant:${slug}->PROVISIONING`)
+    expect(registry.__tenants.get(slug)!.state).toBe("PROVISIONING")
+  })
+
+  it("refuses a lifecycle move from a session that authenticated too long ago", async () => {
+    /*
+     * STUDIO-020-008, through the same real action as the five above.
+     *
+     * The submission is otherwise CORRECT — it is the one the test below
+     * accepts, field for field — so the only thing being asserted is the age of
+     * the authentication behind it. Refused before the executor, like every
+     * other gate here: a step-up demanded after the work has run is a receipt.
+     */
+    const slug = "hr-stale-session"
+    const at = seed(slug, "AWAITING_APPROVAL", 3)
+
+    authenticatedSecondsAgo = STEP_UP_MAX_AGE_SECONDS + 60
+    try {
+      const result = await advanceState(
+        null,
+        form({
+          slug,
+          to: "PROVISIONING",
+          approvedBy: SECOND,
+          reason: "provisioning it",
+          idempotencyKey: idempotencyKey(),
+          ...at,
+          confirmTarget: slug,
+          riskDigest: digestFor(slug, "AWAITING_APPROVAL", "PROVISIONING"),
+        }),
+      )
+
+      expect(result.refusalCode).toBe("step-up-required")
+      expect(result.error).toMatch(/needs an authentication no older than 15 minutes/)
+      expect(registry.__calls.filter((c) => c.startsWith("advanceTenant"))).toEqual([])
+      expect(registry.__tenants.get(slug)!.state).toBe("AWAITING_APPROVAL")
+    } finally {
+      authenticatedSecondsAgo = 60
+    }
+  })
+
+  it("refuses a submission rendered under an operator policy that has since changed", async () => {
+    // The fresh-authorization half. The form carries the revision the page was
+    // rendered under; this one carries a revision that is not the current
+    // policy, which is what an operator whose permissions changed while the
+    // page sat open would submit.
+    const slug = "hr-stale-policy"
+    const at = seed(slug, "AWAITING_APPROVAL", 3)
+
+    const result = await advanceState(
+      null,
+      form({
+        slug,
+        to: "PROVISIONING",
+        approvedBy: SECOND,
+        reason: "provisioning it",
+        idempotencyKey: idempotencyKey(),
+        ...at,
+        confirmTarget: slug,
+        riskDigest: digestFor(slug, "AWAITING_APPROVAL", "PROVISIONING"),
+        [POLICY_REVISION_FIELD]: "op-deadbeef",
+      }),
+    )
+
+    expect(result.refusalCode).toBe("step-up-required")
+    expect(result.error).toMatch(/decided under operator policy op-deadbeef/)
+    expect(registry.__tenants.get(slug)!.state).toBe("AWAITING_APPROVAL")
+  })
+
+  it("accepts the same submission when it carries the policy the console is running", async () => {
+    // The assertion the two above need: the hidden field is checked rather than
+    // merely required, so a correct one passes.
+    const slug = "hr-current-policy"
+    const at = seed(slug, "AWAITING_APPROVAL", 3)
+
+    const result = await advanceState(
+      null,
+      form({
+        slug,
+        to: "PROVISIONING",
+        approvedBy: SECOND,
+        reason: "provisioning it",
+        idempotencyKey: idempotencyKey(),
+        ...at,
+        confirmTarget: slug,
+        riskDigest: digestFor(slug, "AWAITING_APPROVAL", "PROVISIONING"),
+        [POLICY_REVISION_FIELD]: POLICY_REVISION,
+      }),
+    )
+
+    expect(result.error).toBeUndefined()
     expect(registry.__tenants.get(slug)!.state).toBe("PROVISIONING")
   })
 

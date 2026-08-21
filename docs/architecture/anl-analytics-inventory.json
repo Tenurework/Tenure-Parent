@@ -204,6 +204,7 @@
         "analytics-surface"
       ],
       "signals": [
+        "page-math:.reduce(",
         "primitive:StaleIndicator"
       ],
       "owner": "control-plane"

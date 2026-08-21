@@ -86,7 +86,16 @@ import { roleOf } from "../../lib/operators";
  * and the action would then be digesting two different sentences and every
  * approval-gated move would refuse. */
 import { highRiskVerdict } from "../../lib/tenant-state";
-import { CONFIRM_TARGET_FIELD, RISK_DIGEST_FIELD } from "../../components/states";
+/* STUDIO-020-008. The step-up half of the gate: the session's own
+ * authentication time, and the operator policy the page that produced this
+ * submission was rendered under. Both are read HERE — in the action that holds
+ * the session and the form — and handed to `gate`, which decides. */
+import { authenticatedAtOf } from "../../lib/step-up";
+import {
+  CONFIRM_TARGET_FIELD,
+  POLICY_REVISION_FIELD,
+  RISK_DIGEST_FIELD,
+} from "../../components/states";
 import { buildAdoption } from "../../lib/adopt";
 import { parseObjectAuthority } from "../../lib/object-authority";
 
@@ -848,6 +857,30 @@ export async function advanceState(
         : undefined,
       current: async () => ({ version: tenant.history.length, digest: tenant.digest }),
       expectedDigest,
+      /*
+       * STUDIO-020-008. The session is read again rather than threaded out of
+       * `authorizedOperator`: that helper answers one question — may this
+       * principal run this command — and widening its return type to carry a
+       * session would make every one of its eleven callers handle a value ten
+       * of them do not want. `auth()` decodes a cookie; it is not a round trip.
+       *
+       * The revision comes from the form because it is the revision the PAGE
+       * was rendered under. An absent field is `null`, which `stepUpVerdict`
+       * treats as "this surface carries none" rather than as agreement — a
+       * missing hidden input must not read as a match.
+       */
+      session: {
+        authenticatedAt: authenticatedAtOf(await auth()),
+        policyRevisionAtRender:
+          String(form.get(POLICY_REVISION_FIELD) ?? "").trim() || null,
+      },
+      now: new Date(at),
+      /*
+       * The move itself, so the gate classifies it. `PURGING` is the C7 that
+       * makes this a `destructive` step-up trigger, and the class is decided by
+       * `classify` inside the gate rather than asserted here.
+       */
+      operation: { surface: "tenant-lifecycle", action: to, target: slug },
       // STUDIO-120-010, enforced rather than merely published. Assessed on the
       // RECURRING MONTHLY commitment the plan states, and only for the step
       // that actually stands infrastructure up — a threshold applied to every

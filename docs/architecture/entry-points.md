@@ -8,7 +8,7 @@ Generated from the filesystem. `npm run test:platform` regenerates this and
 fails if the committed copy is stale, so it cannot quietly go out of date, and
 fails if a handler appears with no guard and no entry on the public allowlist.
 
-**31 API routes · 58 pages · 21 server-action modules exporting 73 actions.**
+**32 API routes · 58 pages · 21 server-action modules exporting 73 actions.**
 
 ## The two experiences
 
@@ -20,7 +20,7 @@ and only one of them may be reached by a customer.
 
 | Experience | App | Surface | What it is |
 |---|---|---:|---|
-| `tenant` | `apps/web` | 28 routes · 40 pages · 17 action modules | What a customer signs into. Everything it serves is scoped to one institution. |
+| `tenant` | `apps/web` | 29 routes · 40 pages · 17 action modules | What a customer signs into. Everything it serves is scoped to one institution. |
 | `deployer` | `apps/system-studio` | 3 routes · 18 pages · 4 action modules | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
 
 ## What a guard means here
@@ -44,6 +44,7 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 |---|---|---|---|
 | `/api/admin/directory` | tenant | GET | `session` |
 | `/api/ai/chat` | tenant | POST | `session` + `tenant` |
+| `/api/ai/correction` | tenant | POST, GET | `session` + `tenant` |
 | `/api/ai/draft` | tenant | POST | `session` + `tenant` |
 | `/api/attachment/[id]/content` | tenant | GET | `session` + `capability` |
 | `/api/attachment/[id]` | tenant | GET | `session` + `capability` |
@@ -309,7 +310,7 @@ otherwise report `capability` for all twenty-one.
 | Action | Guards |
 |---|---|
 | `composeTenant` | `operator` + `session` |
-| `advanceState` | `operator` + `session` |
+| `advanceState` | `session` + `operator` |
 | `adoptTenantAction` | `operator` + `session` |
 
 ### Actions with no guard of their own
@@ -584,7 +585,7 @@ justified, and capped at 1 so the next one fails the build.
 | `--measure` | deployer | — | `72ch` |
 | `--motion-base` | both (agree) | `180ms` | `180ms` |
 | `--motion-fast` | both (agree) | `120ms` | `120ms` |
-| `--motion-slow` | tenant | `240ms` | — |
+| `--motion-slow` | tenant | `220ms` | — |
 | `--muted` | deployer | — | `#565b62` |
 | `--ok` | deployer | — | `#14724a` |
 | `--primary` | tenant | `#198052` | — |

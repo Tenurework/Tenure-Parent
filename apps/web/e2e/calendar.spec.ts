@@ -267,13 +267,36 @@ test.describe("calendar + conflicts + publishing", () => {
     await expect(page.getByLabel("Ends")).toHaveValue(`${day}T11:30`)
   })
 
+  /**
+   * The locators here are whole accessible names, matched exactly, and that is
+   * load-bearing rather than stylistic.
+   *
+   * `ThemeSwitcher` renders each choice as a label plus a hint inside one
+   * `role="radio"` button, so a control's accessible name is both strings —
+   * "Dark Always dark", "Light Always light". GE-143-013 then added a fourth
+   * choice, "Scheduled", hinted "Dark between two times". Both the substring
+   * locators this test used to carry, `{ name: "Dark" }`, matched two radios
+   * from that moment on and the test died on a strict-mode violation.
+   *
+   * Widening the locator to `.first()` would have "fixed" it while pointing at
+   * whichever radio happens to render first; naming the whole thing exactly
+   * pins each locator to one control and keeps it able to fail — rename a
+   * label or a hint and this goes red, which is what a locator is for. The
+   * aria-checked assertions are the cheap proof that the exact name found the
+   * control it means and not its neighbour, since the html-class assertions
+   * alone would also pass if "Scheduled" resolved dark at the current hour.
+   */
   test("theme switching still works from settings", async ({ page }) => {
     await signIn(page, "Maya Johnson")
     await page.goto("/settings")
-    await expect(page.getByRole("radio", { name: "Dark" })).toBeVisible()
-    await page.getByRole("radio", { name: "Dark" }).click()
+    const dark = page.getByRole("radio", { name: "Dark Always dark", exact: true })
+    const light = page.getByRole("radio", { name: "Light Always light", exact: true })
+    await expect(dark).toBeVisible()
+    await dark.click()
+    await expect(dark).toHaveAttribute("aria-checked", "true")
     await expect(page.locator("html")).toHaveClass(/dark/)
-    await page.getByRole("radio", { name: "Light" }).click()
+    await light.click()
+    await expect(light).toHaveAttribute("aria-checked", "true")
     await expect(page.locator("html")).not.toHaveClass(/dark/)
     await expect(page.getByText("Your seats")).toBeVisible()
   })

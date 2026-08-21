@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import { THEME_BOOT_SCRIPT } from "@/lib/a11y/theme-resolution"
 import { documentLocalization } from "@/lib/tenancy/locale-cookie"
 import "./globals.css"
 
@@ -24,9 +25,16 @@ export const viewport: Viewport = {
 
 // Applied before hydration so the page never flashes the wrong theme, the wrong
 // side-nav width or the wrong control heights. Reads localStorage "tenure-theme"
-// (light/dark/system), "tenure-nav" (collapsed/expanded) and "tenure-density"
-// (comfortable/compact) and stamps the matching class / attribute on <html>
-// before first paint.
+// (light/dark/system/scheduled), "tenure-theme-schedule" ("HH:MM-HH:MM"),
+// "tenure-nav" (collapsed/expanded) and "tenure-density" (comfortable/compact)
+// and stamps the matching class / attribute on <html> before first paint.
+//
+// GE-143-013 — the script itself now lives in `@/lib/a11y/theme-resolution`
+// beside `resolveTheme`, the function the click path and the OS-change listener
+// call. It was written out here as a literal, which made it the first of three
+// copies of the same boolean; `theme-resolution.test.ts` evaluates the string
+// against a fake document over the full input matrix and fails if it and
+// `resolveTheme` ever disagree.
 //
 // Density is an ATTRIBUTE (`data-density`), matching
 // `:root[data-density="compact"]` in globals.css, and it is always written —
@@ -37,7 +45,7 @@ export const viewport: Viewport = {
 // The narrowing is the same one DensitySwitcher.readDensity applies — anything
 // that is not exactly "compact" is comfortable — so a corrupted localStorage
 // value cannot produce a third, undefined density.
-const themeInit = `(function(){try{var t=localStorage.getItem("tenure-theme")||"system";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);var n=localStorage.getItem("tenure-nav");document.documentElement.classList.toggle("nav-collapsed",n==="collapsed");var y=localStorage.getItem("tenure-density");document.documentElement.setAttribute("data-density",y==="compact"?"compact":"comfortable")}catch(e){}})()`
+const themeInit = THEME_BOOT_SCRIPT
 
 export default async function RootLayout({
   children,

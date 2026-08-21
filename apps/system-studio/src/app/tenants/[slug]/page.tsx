@@ -7,7 +7,7 @@ import type { CellRecord } from "@tenure/provisioning"
 import { classify, getPlan, planFor, requirementsFor } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
-import { authorizeCommand, controlPlaneIdentity } from "@/lib/authorize"
+import { POLICY_REVISION, authorizeCommand, controlPlaneIdentity } from "@/lib/authorize"
 import { ArchivedState, PendingDeletionState, PermissionDeniedState } from "@/components/states"
 import {
   ARCHIVED_STATES,
@@ -34,6 +34,9 @@ import { GovernancePanel } from "@/components/GovernancePanel"
 import { changeCalendar } from "@/lib/change/calendar"
 import { REFUSED_OPERATIONS } from "@/lib/command-handlers"
 import { purgeReadiness } from "@/lib/purge-readiness"
+import { purgeFinality } from "@/lib/purge-finality"
+import { userPoolDetails } from "@/lib/aws/cognito"
+import { userPoolIdsFrom } from "@/lib/change/tenant-users"
 import {
   Badge,
   ButtonLink,
@@ -639,6 +642,20 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
    * reading on this page carries.
    */
   const allSlugs = await readingAsync(() => takenSlugs(), "the tenant registry", "dynamodb:Query")
+  /*
+   * STUDIO-060-004, the `users` axis. The ARNs the estate attributed to this
+   * tenant, and — for the user pools among them — what AWS says is in them.
+   *
+   * `userPoolDetails` rather than `cognitoReadings()`: this needs one field per
+   * pool, and the composed identity load reads MFA configuration, app clients,
+   * domains and the operator roster for every pool in the region. Which pools
+   * to ask about comes from the attribution this page already made, so the
+   * count is over the tenant's own directories and nobody else's.
+   */
+  const attributedArns =
+    footprint === null ? null : footprint.services.flatMap((service) => service.arns)
+  const userPools =
+    attributedArns === null ? null : await userPoolDetails(userPoolIdsFrom(attributedArns))
   const governanceCalendar = changeCalendar()
   const governance = tenantGovernance({
     slug: tenant.slug,
@@ -648,7 +665,8 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
     cells,
     placedCellId: placement?.cellId ?? null,
     tagged: taggedRead,
-    attributed: footprint === null ? null : footprint.services.flatMap((service) => service.arns),
+    attributed: attributedArns,
+    userPools,
     seatLimit: commercialPlan ? (seatQuota?.limit ?? null) : undefined,
     environment: placedCell?.environment ?? "unknown",
     calendar: governanceCalendar,
@@ -1806,6 +1824,39 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
         <div className={styles.stack}>
           <p className="md3-body-medium">{whatMovingDoes(moves)}</p>
 
+          {/*
+            GE-103-019 — what is true of the CONTENT, not of the graph.
+
+            "There is no move out of this state" is a statement about the
+            transition table. It is compatible with the data sitting on a
+            snapshot somebody can restore, and for a purged tenant that is
+            false. `purgeFinality` returns null for every state where the
+            question does not arise, so this paragraph appears on exactly the
+            three states it is about and nowhere else.
+          */}
+          {(() => {
+            const finality = purgeFinality(tenant.state)
+            if (!finality) return null
+            return (
+              <div data-testid="purge-finality" data-content-standing={finality.content}>
+                <p className="md3-body-medium">
+                  <b>{finality.headline}</b>
+                </p>
+                <p className="md3-body-medium">{finality.rebuild}</p>
+                {finality.inputs.length > 0 ? (
+                  <ul>
+                    {finality.inputs.map((input) => (
+                      <li key={input.what} className="md3-body-small">
+                        <b>{input.what}</b> &mdash; {input.from}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <p className="md3-body-small">{finality.parentRetains}</p>
+              </div>
+            )
+          })()}
+
           <DataTable
             caption="Permitted transitions, lightest first"
             rows={moves}
@@ -1882,6 +1933,13 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               // exactly what the action's `current()` reads back.
               expectedVersion={tenant.history.length}
               expectedDigest={tenant.digest}
+              // STUDIO-020-008. The operator policy this page rendered under.
+              // Computed on the server from the grant table itself, submitted
+              // as a hidden field, and compared by `stepUpVerdict` — a
+              // permission changed while this page sat open makes the
+              // submission stale rather than letting it inherit a decision
+              // taken under a policy that no longer exists.
+              policyRevision={POLICY_REVISION}
               moves={moves.map((move) => ({
                 to: move.to,
                 needsApproval: move.needsApproval,

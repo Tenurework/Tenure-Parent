@@ -9,10 +9,12 @@ import {
   type Command,
   type IdempotencyRecord,
 } from "@tenure/contracts"
+import type { ChangeOperation } from "@tenure/provisioning"
 import { approvalFor, fromMinorUnits, toDecimal, type ApprovalLevel } from "@tenure/finops"
 
 import { authorizeCommand, decisionLine, type StudioCommand } from "./authorize"
 import { claimIdempotency, type StoredIdempotencyClaim } from "./registry"
+import { stepUpVerdict, type StepUpSession, type StepUpVerdict } from "./step-up"
 
 /**
  * STUDIO-060-002 — everything that must be true at EXECUTION time, in one
@@ -47,8 +49,8 @@ import { claimIdempotency, type StoredIdempotencyClaim } from "./registry"
  *
  * ## Order, and why the claim is last
  *
- * parse → operator → semantic authorization → expected version → budget →
- * idempotency claim.
+ * parse → operator → semantic authorization → step-up and fresh authorization →
+ * expected version → budget → idempotency claim.
  *
  * The claim is written after the refusals rather than before them, deliberately.
  * A key burned by a command that was going to be refused anyway turns the
@@ -58,18 +60,26 @@ import { claimIdempotency, type StoredIdempotencyClaim } from "./registry"
  * write, so two identical valid submissions race at the database and exactly
  * one proceeds.
  *
- * ## Honest gap
+ * ## The step-up check, which used to be the honest gap
  *
- * There is no step-up check here. STUDIO-020-008 is not implemented anywhere in
- * this repository — a grep for `step-up` over `apps/system-studio/src` returns
- * nothing — and a call to a function that does not exist, or a boolean that
- * always says "stepped up", would be worse than the gap. It goes in when the
- * check exists, at the line marked below.
+ * This header used to say there was none, and that STUDIO-020-008 was not
+ * implemented anywhere in the repository. It is now `./step-up`, and it runs at
+ * step 3 below — after the operator is known and their permission decided, and
+ * before anything about the target is read. Both halves are enforced: the
+ * authentication behind a triggering command must be no older than
+ * `STEP_UP_MAX_AGE_SECONDS`, and the operator policy the submitting surface was
+ * rendered under must still be the policy in force.
+ *
+ * Order matters and this is the order: an operator who does not hold the
+ * permission is told THAT, not that their session is stale, because sending
+ * somebody to re-authenticate for a permission they will still not have is a
+ * refusal that wastes the one thing an incident does not have.
  */
 
 export type RefusalCode =
   | "invalid-command"
   | "not-authorized"
+  | "step-up-required"
   | "version-conflict"
   | "idempotency-conflict"
   | "approval-required"
@@ -95,6 +105,14 @@ export type GateOutcome<P> =
       operationId: string
       /** What the budget policy said, when the command carried an estimate. */
       approval: { level: ApprovalLevel; detail: string; amount: string } | null
+      /**
+       * What the step-up check said. Carried on the PERMITTED outcome as well
+       * as the refusal so an audit row can record which triggers fired and how
+       * old the authentication behind them was — "allowed, and here is why that
+       * was allowed" is the half of an authorization record an investigation
+       * actually needs.
+       */
+      stepUp: StepUpVerdict
     }
   | { kind: "replay"; command: Command<P>; replay: Replay }
   | { kind: "refused"; refusal: Refusal }
@@ -116,6 +134,36 @@ export interface GateChecks {
    * region is refused by the gate rather than by the SDK.
    */
   placement?: { accountId?: string; region?: string; environment?: string }
+  /**
+   * The session behind this submission, for STUDIO-020-008.
+   *
+   * Required, and both of its fields are required-and-nullable, for the reason
+   * `OperatorAuthorizationRequest` gives about its own axes: an optional
+   * step-up input is one a caller can forget, and a caller that forgets it
+   * turns the check into a no-op that still compiles. Nulls are refused for
+   * every triggering command rather than waved through — see `./step-up`.
+   */
+  session: StepUpSession
+  /**
+   * The clock the step-up window is measured against.
+   *
+   * Passed in rather than read here so a test and the action agree, and taken
+   * from the server's own `now()` rather than from anything on the request:
+   * `effectiveAt` travels inside the command, and a check that aged a session
+   * against a timestamp the command carried could be made to see a stale
+   * session as a fresh one by moving that timestamp backwards.
+   */
+  now: Date
+  /**
+   * What this command CHANGES, so `./step-up` can classify it rather than take
+   * a class from the caller.
+   *
+   * `null` for a command whose surface the C1–C7 taxonomy does not cover. It is
+   * the operation and not the class deliberately: a caller that passed the
+   * class would be a caller deciding its own gate, which is the argument
+   * `lib/aws/mutate.ts` makes about `scale-to-zero`.
+   */
+  operation: ChangeOperation | null
   /**
    * The version and digest the target is at RIGHT NOW.
    *
@@ -220,10 +268,49 @@ export async function gate<P>(raw: unknown, checks: GateChecks): Promise<GateOut
     )
   }
 
-  // STUDIO-020-008 — the step-up check goes here, once one exists. See the
-  // honest gap in this module's header.
+  // ── 3. Is the operator still here, and is the policy still the one they
+  //       were decided under (STUDIO-020-008) ──────────────────────────────
+  //
+  // Before the target is read, because the answer does not depend on the
+  // target: a stale session may not purge a tenant whether or not the version
+  // it names is current, and reading the registry first would leak whether the
+  // tenant exists to a request that is about to be refused anyway.
+  //
+  // The cost band is computed here rather than in step 5 because "is this
+  // expensive" is one of the seven step-up triggers and must be the SAME
+  // answer the approval refusal uses. Two `approvalFor` calls with two inputs
+  // is how a command becomes high-cost for one check and ordinary for the
+  // other.
+  const band = checks.recurringMonthly
+    ? approvalFor({
+        change: checks.recurringMonthly.change,
+        estimated: fromMinorUnits(
+          checks.recurringMonthly.minorUnits,
+          checks.recurringMonthly.currency,
+        ),
+      })
+    : null
 
-  // ── 3. What the approver was looking at ──────────────────────────────────
+  const stepUp = stepUpVerdict(
+    {
+      command: checks.command,
+      // The environment the command TARGETS, which is the placement the
+      // registry recorded for this tenant — not the one this process is
+      // deployed into. `authorizeCommand` above has already refused a target
+      // outside this control plane's scope, so by here the two agree; taking
+      // the target's own is what keeps them agreeing if that ever changes.
+      environment: checks.placement?.environment ?? decision.scope.environment,
+      operation: checks.operation,
+      recurringMonthly: checks.recurringMonthly,
+    },
+    checks.session,
+    checks.now,
+  )
+  if (!stepUp.permitted) {
+    return refuse("step-up-required", stepUp.detail, 403)
+  }
+
+  // ── 4. What the approver was looking at ──────────────────────────────────
   const current = await checks.current()
   if (current === null) {
     return refuse("version-conflict", `No "${command.resourceId}" to act on.`, 404)
@@ -246,14 +333,16 @@ export async function gate<P>(raw: unknown, checks: GateChecks): Promise<GateOut
     )
   }
 
-  // ── 4. What it costs to say yes ──────────────────────────────────────────
+  // ── 5. What it costs to say yes ──────────────────────────────────────────
+  //
+  // `band` was computed at step 3, because the step-up check needs the same
+  // answer. Recomputing it here would be two decisions about one number.
   let approval: { level: ApprovalLevel; detail: string; amount: string } | null = null
-  if (checks.recurringMonthly) {
+  if (checks.recurringMonthly && band) {
     const estimated = fromMinorUnits(
       checks.recurringMonthly.minorUnits,
       checks.recurringMonthly.currency,
     )
-    const band = approvalFor({ change: checks.recurringMonthly.change, estimated })
     approval = {
       level: band.level,
       detail: band.detail,
@@ -272,7 +361,7 @@ export async function gate<P>(raw: unknown, checks: GateChecks): Promise<GateOut
     }
   }
 
-  // ── 5. The claim ─────────────────────────────────────────────────────────
+  // ── 6. The claim ─────────────────────────────────────────────────────────
   const digest = requestDigest(command)
   const claim: StoredIdempotencyClaim = {
     key: command.idempotencyKey,
@@ -288,7 +377,7 @@ export async function gate<P>(raw: unknown, checks: GateChecks): Promise<GateOut
 
   const claimed = await claimIdempotency(claim.tenantId, claim)
   if (claimed.claimed) {
-    return { kind: "proceed", command, operationId: checks.operationId, approval }
+    return { kind: "proceed", command, operationId: checks.operationId, approval, stepUp }
   }
 
   // Somebody got here first with this key. `replayable` decides whether that is

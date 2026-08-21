@@ -10,7 +10,7 @@ Regenerate with `node tools/pack-surface-inventory.mjs`.
 is stale, if any row cites a path that is not there, or if a module claims a
 schema model the database does not declare.
 
-**12 modules · 89 routes (68 tenant, 21 deployer) · 52 schema models · 19 workspaces · 1 feature flag · 24 provider packs · 11 configuration layers · 16 configuration domains · 3 blueprints.**
+**12 modules · 90 routes (69 tenant, 21 deployer) · 52 schema models · 19 workspaces · 1 feature flag · 24 provider packs · 11 configuration layers · 16 configuration domains · 3 blueprints.**
 
 This is an inventory of what EXISTS, not a claim about what works. Every module
 below is `certified-limited` — Bible §6's name for a capability that runs and is
@@ -70,6 +70,7 @@ filesystem and never appear in a URL.
 | deployer | page | `/tenants/new` | — | `apps/system-studio/src/app/tenants/new/page.tsx` |
 | tenant | api | `/api/admin/directory` | GET | `apps/web/src/app/api/admin/directory/route.ts` |
 | tenant | api | `/api/ai/chat` | POST | `apps/web/src/app/api/ai/chat/route.ts` |
+| tenant | api | `/api/ai/correction` | GET POST | `apps/web/src/app/api/ai/correction/route.ts` |
 | tenant | api | `/api/ai/draft` | POST | `apps/web/src/app/api/ai/draft/route.ts` |
 | tenant | api | `/api/attachment/[id]` | GET | `apps/web/src/app/api/attachment/[id]/route.ts` |
 | tenant | api | `/api/attachment/[id]/content` | GET | `apps/web/src/app/api/attachment/[id]/content/route.ts` |

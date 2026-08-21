@@ -27,6 +27,7 @@ import {
 } from "@/lib/aws/result"
 import { listFleet, listOperations, putAuditEntry, registryConfigured } from "@/lib/registry"
 import { matchesFilter, parseFleetFilter } from "@/lib/fleet-filter"
+import { fleetView, parseFleetView, viewVerdict } from "@/lib/fleet-views"
 import { costSource } from "@/lib/cost-source"
 import { advanceState } from "@/app/tenants/actions"
 
@@ -782,7 +783,34 @@ export async function GET(request: Request, { params }: Params) {
     // health read is two AWS calls and this endpoint is polled. `undefined`
     // health makes a `?signal=` filter match nothing rather than everything,
     // which is the safe direction and is stated in `matchesFilter`.
-    const matching = all.filter((row) => matchesFilter(row, filter, undefined))
+    /*
+     * GE-103-001. The named view the fleet page was showing, applied to the
+     * same rows so an export cannot carry tenants the screen said were hidden.
+     *
+     * `drifted` is refused rather than exported. This surface computes no
+     * health — the read is two AWS calls and this endpoint is polled — so every
+     * row's drift verdict here would be `unknown`, and `viewVerdict` would
+     * correctly place none of them in the view. An empty CSV headed "drifted"
+     * is the exact false green the view exists to prevent, so it is a 400 that
+     * says why rather than a file that says nothing.
+     */
+    const namedView = fleetView(parseFleetView(Object.fromEntries(url.searchParams.entries())))
+    if (namedView?.observed) {
+      return problemResponse({
+        type: PROBLEM.badRequest,
+        title: "That view cannot be exported",
+        status: 400,
+        detail:
+          `The "${namedView.id}" view is decided by an observation of the estate, and this surface takes no ` +
+          `observations. Exporting it would produce an empty file rather than the tenants it names. Export a ` +
+          `lifecycle view, or read the view on /tenants where the observations are taken.`,
+        instance: ctx.instance,
+        correlationId: ctx.correlationId,
+      })
+    }
+    const matching = all
+      .filter((row) => (namedView ? viewVerdict(namedView, row, undefined) === "in" : true))
+      .filter((row) => matchesFilter(row, filter, undefined))
 
     /*
      * STUDIO-100-002. The projection an export runs through.

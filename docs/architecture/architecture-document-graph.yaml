@@ -141,14 +141,14 @@ documents:
     family: "fin-finance-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: df8c9471f0988a60595aa5bc3beb9b64356307cd8cce31063d2bf9232d8e9935
-    bytes: 29977
+    sha256: d467c851f39ea43098fe75201c814feef71370340ba542f0f6483ab95135cd54
+    bytes: 33461
     aliases: []
     requirement_prefixes:
       - FIN
       - PAY
     states_requirements: 0
-    mentions_requirement_ids: 6
+    mentions_requirement_ids: 7
   - id: "hcm-capability-matrix"
     title: "People Cloud — supported capability, jurisdiction and provider matrix"
     version: unversioned
@@ -187,8 +187,8 @@ documents:
     family: "int-connector-write-boundary"
     superseded_by: null
     supersedes: []
-    sha256: a0db266b526593423ee70e92130eeb67713760bf30b1dda217d361eb51c843f3
-    bytes: 7431
+    sha256: "843bc55a44ea747e8e26834b9fecf3243100d08fabe9a5c0168129910e6898cc"
+    bytes: 7781
     aliases: []
     requirement_prefixes: []
     states_requirements: 0
@@ -201,8 +201,8 @@ documents:
     family: "int-integration-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "79ee81f7204fead3384ae8f7fcea64af9bfac38e400d44754fd398f11262c75c"
-    bytes: 20986
+    sha256: e6891702216ca0f99d9e3a799f9d85b4183613d57273a225ab3ca8c55a1e2674
+    bytes: 21097
     aliases: []
     requirement_prefixes:
       - INT
@@ -262,8 +262,8 @@ documents:
     family: "pack-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: d4d3b165867428d8a44d0b0d844d9007b493970ba287e0f20fa83f2a24ee6e61
-    bytes: 21101
+    sha256: "92a080993638d0bd8e3863fc68ec9e20050179e15a2bd537efa8ae2a51b382df"
+    bytes: 21200
     aliases: []
     requirement_prefixes:
       - PACK
@@ -475,7 +475,7 @@ documents:
     family: Tenure_Claude_Code_Global_Engine_Execution_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: "7a73db6cdbd17b43ad0ee3d893ed487b17ee700eb66fd8937d2385bea795273c"
+    sha256: c2470ad172639ddc8e098d2953d08d446b5c1ac5a9627ec0bcbaaa3f45b935ef
     bytes: 115086
     aliases: []
     requirement_prefixes:
@@ -490,7 +490,7 @@ documents:
     family: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: "6e739630171d6a8c004def885130fbe414a5065f1bd2fbfe6edb3abb135bb658"
+    sha256: c200e2d5c09aaa7eafc93920fef315aaccbf64d77d99c011fae9a09757fc60f8
     bytes: 162330
     aliases: []
     requirement_prefixes:
@@ -537,13 +537,13 @@ documents:
     family: "bounded-contexts"
     superseded_by: null
     supersedes: []
-    sha256: "4074c19f915a50560d8af0c58d2abec728f89ebfcc8fa5ed51095148b68cdc4f"
-    bytes: 11378
+    sha256: "3fc43c6311fff75865f0307223c276e3f850b245e820d2c99caa83d3be6dae52"
+    bytes: 12820
     aliases: []
     requirement_prefixes:
       - PAY
     states_requirements: 0
-    mentions_requirement_ids: 3
+    mentions_requirement_ids: 5
   - id: "payment-authority-and-regulatory-boundary"
     title: Payment authority and regulatory boundary
     version: unversioned

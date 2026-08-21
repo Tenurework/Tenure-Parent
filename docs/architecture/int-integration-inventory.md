@@ -34,7 +34,7 @@ approximated from structure.
 
 | category | count |
 | --- | --- |
-| HTTP route handlers | 31 |
+| HTTP route handlers | 32 |
 | — inbound from a provider | 1 |
 | — inbound from the scheduler | 4 |
 | internal event types | 2 |
@@ -62,6 +62,7 @@ reach it. `direction` is derived from the route path, not asserted.
 | deployer | `/api/export` | GET | tenant-session | `apps/system-studio/src/app/api/export/route.ts` |
 | tenant | `/api/admin/directory` | GET | tenant-session | `apps/web/src/app/api/admin/directory/route.ts` |
 | tenant | `/api/ai/chat` | POST | tenant-session | `apps/web/src/app/api/ai/chat/route.ts` |
+| tenant | `/api/ai/correction` | GET, POST | tenant-session | `apps/web/src/app/api/ai/correction/route.ts` |
 | tenant | `/api/ai/draft` | POST | tenant-session | `apps/web/src/app/api/ai/draft/route.ts` |
 | tenant | `/api/attachment/[id]/content` | GET | tenant-session | `apps/web/src/app/api/attachment/[id]/content/route.ts` |
 | tenant | `/api/attachment/[id]` | GET | tenant-session | `apps/web/src/app/api/attachment/[id]/route.ts` |

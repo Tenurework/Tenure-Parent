@@ -21,18 +21,21 @@ const CATALOG: AttributeCatalog = {
     members: ["ACTIVE", "PENDING", "SUSPENDED", "REVOKED", "ENDED"],
     acceptedSourceRoles: ["SYSTEM_OF_RECORD", "AUTHORITATIVE"],
     maxAgeMs: 3_600_000,
+    derivation: "SOURCE_ASSERTED",
   },
   "affiliation.interval": {
     id: "affiliation.interval",
     type: "interval",
     acceptedSourceRoles: ["SYSTEM_OF_RECORD"],
     maxAgeMs: 3_600_000,
+    derivation: "SOURCE_ASSERTED",
   },
   "identity.email.verified": {
     id: "identity.email.verified",
     type: "boolean",
     acceptedSourceRoles: ["SYSTEM_OF_RECORD"],
     maxAgeMs: 3_600_000,
+    derivation: "SOURCE_ASSERTED",
   },
   "person.disability.status": {
     id: "person.disability.status",
@@ -40,6 +43,7 @@ const CATALOG: AttributeCatalog = {
     members: ["DECLARED", "NOT_DECLARED"],
     acceptedSourceRoles: ["SELF_ATTESTED"],
     maxAgeMs: 3_600_000,
+    derivation: "SOURCE_ASSERTED",
     protectedAttribute: true,
   },
 }

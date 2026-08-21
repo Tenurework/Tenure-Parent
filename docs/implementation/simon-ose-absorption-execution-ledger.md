@@ -204,203 +204,74 @@ pattern has an open capture. Rule 8 above is why. The guard test walks every
 finding on both sides and reds if a masking probe printed anything but `#`,
 which is the one check here whose absence would not show up as a wrong number.
 
-- [ ] **SIMON-000-004** — Locate every hard-coded Simon/OSE/University/club/term/role/workflow/domain/account/region/resource assumption, including values hidden in fixtures, CSS, route names, reports, permission checks, and deployment scripts.
-  - Status: FAIL
-  - Overturned on review: Requirement says "locate EVERY hard-coded Simon/OSE/.../role ... assumption"; the scan does not locate the pilot's own role vocabulary. `role-constant` is a closed list of six names, two of which (OSE_ADMIN, VICE_PRESIDENT) occur nowhere in either tree, and it omits `enum InstitutionRole { OSE_DIRECTOR, OSE_STAFF, OSE_ADVISOR }` and `enum RoleScope { PRESIDENT, FUNCTIONAL, MEMBER }`. `tenant-token` cannot cover for it: /\bOSE\b/ does not match OSE_DIRECTOR because `_` is a word character. Measured on the pinned trees with the generator's own SCANNABLE/NOT_SCANNED filters: source has 107 OSE_DIRECTOR/OSE_STAFF/OSE_ADVISOR occurrences, 92 of them on lines where the snapshot records NO finding of any kind (20/11/6 files), plus 34 more unrecorded lines for FUNCTIONAL/MEMBER; target 192 occurrences, 172 unrecorded lines. Missed sites include apps/web/src/app/(app)/admin/actions.ts:15 `const INSTITUTION_ROLES: InstitutionRole[] = ["OSE_DIRECTOR","OSE_STAFF","OSE_ADVISOR"]`, apps/web/prisma/schema.prisma:81, and apps/web/prisma/migrations/20260730000000_baseline/migration.sql:5 `CREATE TYPE "InstitutionRole" AS ENUM (...)`. These are literal closed-set tokens in already-scanned files, so this is not the disclosed "a probe is a pattern, not a compiler" limit, and no honest-limits line discloses it. The `workflow` kind is also 0 on the source side while that tree carries `model ApprovalStep`, five `approvalStep.create` call sites and SLA escalation logic, so that row is empty rather than located. All 7 claimed mutations DO reproduce (0 survivors), but mutation 7 reds only `not ok 9` at 17/1, not `not ok 7`+`not ok 9` at 16/2 (the claimed shape needs a duplicate PLACES row, not a reorder), and its narrative is wrong: reports 41->9 but permission checks 89->89 on the source and 213->213 on the target, so only `reports` was being absorbed by `route names`.
-  - Code: `tools/simon-convergence-inventory.mjs` — `ASSUMPTION_PROBES` (13
-    content probes, line 143), `PATH_PROBES` (line 244), `PLACES` + `placeOf`
-    (lines 269, 279), `SCANNABLE`/`NOT_SCANNED` (lines 126, 127),
-    `scanAssumptions` (line 312), `renderAssumptions` (line 1172)
-  - Caller: `tests/simon-convergence-inventory.test.mjs:57` imports it;
-    `tools/run-platform-tests.mjs:32` discovers that spec by pattern and
-    `npm run test:platform` runs it, so the module is reached by the suite CI
-    runs rather than only by a person typing the generator's name
-  - Artifacts: `docs/architecture/simon-hardcoded-assumptions.md` (people),
-    `docs/architecture/simon-convergence-inventory.json` (machine — every
-    finding, grouped by file and probe, with every line number)
-  - Tests: `tests/simon-convergence-inventory.test.mjs` — 18 cases,
-    `npm run test:platform` (bare `node --test`, not jest). Six of the eighteen
-    are this requirement's: the render equality, the mask-leak guard, the reveal
-    vocabulary, the baseline path check, the roll-up re-addition and the place
-    partition.
+- [x] **SIMON-000-004** — "Locate every hard-coded Simon/OSE/University/club/term/role/workflow/domain/account/region/resource assumption, including values hidden in fixtures, CSS, route names, reports, permission checks, and deployment scripts."
+  - Status: PASS
+  - Replaces the `Overturned on review` row of 2026-08-17. Both named misses are closed and each was re-checked here at the exact sites the review cited.
+  - Provenance, stated because a refuter will find it anyway: **I did not write this code.** It landed in commit `99585c6` ("Six biggest families, twelve slices") in an earlier wave and no ledger row was ever written for it, so the ledger still carried the overturn and the registry still read FAIL. What this row adds is verification against the review's own sentences and a fresh mutation proof.
+  - Code: `tools/simon-convergence-inventory.mjs` — `parsePrismaSchema` (297), `VOCABULARY_ENUMS` (339), `deriveVocabulary` (376), `ASSUMPTION_PROBES` (144) now including `approval-chain-symbol` and `sla-threshold`, `PLACES` + `placeOf` (427, 437), `scanAssumptions` (481), `renderAssumptions` (1662)
+  - Caller: `tests/simon-convergence-inventory.test.mjs:57` imports it; `tools/run-platform-tests.mjs:26` discovers that spec by recursing `tests/`, and `.github/workflows/ci.yml:155` runs `npm run test:platform`
+  - Artifacts: `docs/architecture/simon-hardcoded-assumptions.md` (people), `docs/architecture/simon-convergence-inventory.json` (machine — every finding grouped by file and probe, with every line number)
+  - Tests: `tests/simon-convergence-inventory.test.mjs` — 24 cases; cases 16, 17 and 18 are this requirement's two closed misses and the parser they stand on
   - Evidence, verbatim:
-    - `node tools/simon-convergence-inventory.mjs` →
-      `assumptions: source 1825 hits in 175 files, target 5909 in 619`
-    - `node --test tests/simon-absorption-inventory.test.mjs tests/simon-convergence-inventory.test.mjs`
-      → `# tests 28 / # pass 28 / # fail 0`
-    - Two runs of the generator produced byte-identical output for all five
-      artifacts (SHA-256 compared): `DETERMINISTIC: all 5 artifacts byte-identical across two runs`
-    - `node tools/simon-convergence-inventory.mjs --check` →
-      `ok — 4 documents match docs/architecture/simon-convergence-inventory.json`
-  - Mutations, one at a time, each restored and re-verified green afterwards:
-    1. `docs/.../simon-capability-disposition.md`: `## Package by package` →
-       `## Package by packageZZZ` → `not ok 1 - the four documents are exactly
-       what the snapshot renders`, `# pass 17 / # fail 1`.
-    2. Snapshot: a `resource-identifier` finding's `tokens` →
-       `["zzz-leaked-bucket-literal"]`, documents re-rendered from the mutated
-       snapshot so only the guard under test could red → `not ok 3 - a masked
-       probe leaks nothing`, `# pass 17 / # fail 1`. **The privacy control
-       demonstrably fails when it should.**
-    3. Snapshot: `assumptions.source.by_kind[club].hits` `925` → `424242` →
-       `not ok 7 - every roll-up re-adds from the raw findings`, 17/1.
-    4. Snapshot: one finding's `place` `"elsewhere"` → `"CSS"` → `not ok 7`,
-       `not ok 8 - every finding's place is the place its own path resolves to`,
-       `# pass 16 / # fail 2`.
-    5. Snapshot: one finding's `file` → `apps/web/src/lib/zzz-does-not-exist.ts`
-       → `not ok 5`, `not ok 6`, `not ok 7`, `not ok 8`, `# pass 14 / # fail 4`.
-    6. Production code: `maskToken = (s) => '#'.repeat(s.length)` → `(s) => s`,
-       generator re-run → `not ok 3`, 17/1. This is the one that proves the leak
-       guard is not circular: the mutation is in the masking function itself and
-       the test still catches it, because the test asserts a property of the
-       output (`/^#+$/`) rather than calling the function.
-    7. Production code: `PLACES` reordered so `route names` precedes `reports`,
-       generator re-run → `not ok 7`, `not ok 9 - the hiding places stay
-       specific-before-generic`, 16/2.
-    0 survivors of the six that bear on this requirement.
-  - What the scan actually found, and why the numbers are the point rather than
-    the headline:
-    - **Every assumption the requirement names has a row.** Source side: 637
-      `Simon`/`OSE` tokens in 107 files, 925 `club` in 125, 111 hard-coded role
-      checks in 43 (including `role === "OSE_DIRECTOR"` and `role === "OSE_STAFF"`),
-      22 `University`, 21 `us-east-1`, 8 term literals — `Fall 2025` and
-      `Fall 2026` among them. Target side: 5909 hits in 619 files, plus 445
-      twelve-digit account-shaped runs and 479 resource identifiers, both masked.
-    - **Every hiding place the requirement names has a row, and it is not
-      empty.** Source: fixtures 55, CSS 2, reports 41, permission checks 89,
-      deployment scripts 71, route names 391, elsewhere 1176. A finding is
-      attributed to the FIRST matching place, so the seven rows partition the
-      total exactly once and the guard test re-adds them.
-    - The first ordering of `PLACES` put `route names` before `reports` and
-      `permission checks`. `route names` matches everything under `src/app/`,
-      which in Next.js is every page — so the report pages and the
-      permission-checking server actions were being counted as route names, and
-      two of the requirement's most interesting hiding places read as nearly
-      clean. They were not; they were being absorbed by their neighbour. That is
-      mutation 7 above, and it is why the order is asserted.
-    - The largest single concentration in the source is
-      `apps/web/src/lib/policies.ts` — 97 hits spanning tenant name, university,
-      club, domain and role. `apps/web/src/lib/rbac.ts` carries 32.
-      `SIMON-GATE-010` ("no Simon-aware core business logic") can now be argued
-      from a list instead of from memory.
-  - Honest limits, stated in the document itself: a probe is a pattern, not a
-    compiler — it locates a literal and does not decide whether that literal is
-    load-bearing, so a hit is not automatically a defect. `docs/` is excluded
-    (prose is not runtime behaviour, and the generated inventories there mention
-    the tenant thousands of times). Non-scannable extensions are not searched, so
-    an assumption inside a spreadsheet or PDF is invisible; `Tier1/` is listed by
-    path and never opened. `aws-account-id` matches any bare twelve-digit run, so
-    a hit there is a shape to look at rather than an account — masked either way.
+    - `node tools/simon-convergence-inventory.mjs` -> `assumptions: source 2873 hits in 187 files, target 9849 in 845`
+    - `node --test tests/simon-convergence-inventory.test.mjs` -> `# tests 24 / # pass 24 / # fail 0`
+    - `node tools/simon-convergence-inventory.mjs --check` -> `ok — 4 documents match docs/architecture/simon-convergence-inventory.json`
+  - The first miss, closed. The role vocabulary is no longer six names typed from memory, two of which (`OSE_ADMIN`, `VICE_PRESIDENT`) occurred nowhere in either tree. `deriveVocabulary` reads it out of BOTH schemas and unions the members, so the probe cannot go stale: a role added to a schema is in the probe on the next run. The `role` kind went **111 -> 357** hits on the source side. Every site the review named is now recorded, at the lines it named, and I re-read them out of the snapshot rather than trusting the roll-up:
+    - `apps/web/src/app/(app)/admin/actions.ts` — `role-enum-member` at source lines 15, 17, 19, 273, 390, 393 (target 20, 22, 24, 290, 422, 430), tokens `FUNCTIONAL` `OSE_ADVISOR` `OSE_DIRECTOR` `OSE_STAFF`. Line 15 is the hard-coded `INSTITUTION_ROLES` array the review cited.
+    - `apps/web/prisma/schema.prisma` — source lines 81, 82, 83, 194, 329, 330 (target 90, 91, 92, 243, 424, 425).
+    - `apps/web/prisma/migrations/20260730000000_baseline/migration.sql` — lines 5, 20, 168 on both sides. Line 5 is `CREATE TYPE "InstitutionRole" AS ENUM (…)`.
+  - The second miss, closed. The `workflow` kind read **0** on the source side while that tree carried `model ApprovalStep`, five `approvalStep.create` call sites and an SLA escalation clock. It now reads **709 hits in 75 files** (target 2742 in 389), from three probes: `approval-chain-symbol` (the declared models), `sla-threshold` (`SLA_ATTENTION_DAYS` / `SLA_OVERDUE_DAYS` and the escalation verbs), and the derived `workflow-state-member`. The guard asserts named sites rather than a non-zero count, because a row of noise is also non-zero: `sla-threshold` at `apps/web/src/lib/approvals-sla.ts` and `approval-chain-symbol` at `apps/web/prisma/schema.prisma`.
+  - Mutations, one literal at a time, generator re-run after each, each restored and re-verified 24/24:
+    1. `VOCABULARY_ENUMS` role selector `/(?:Role|Scope)$/` -> `/Role$/` -> `not ok 16 - the role and workflow vocabulary is read out of the schemas, not typed from memory`, error `PRESIDENT is not in the role vocabulary`, `# pass 23 / # fail 1`.
+    2. `VOCABULARY_ENUMS` workflow selector `/Status$/` -> `/Ztatus$/` -> `not ok 17 - the workflow row is located rather than empty, on both sides`, error `workflow-state-member found nothing at all on the source side`, 23/1.
+    3. `parsePrismaSchema`'s enum branch pushes a constant instead of the member -> `not ok 16`, `not ok 17`, `not ok 18`, `not ok 19`, 20/4. One literal, four reds, because that parser is what this requirement's vocabulary AND SIMON-000-005's schema comparison both stand on — which is the argument for there being one parser rather than two.
+    0 survivors.
+  - Every hiding place the requirement names still has a non-empty row, and the seven places partition the findings exactly once (`placeOf` attributes each to the FIRST match, and the roll-up guard re-adds them). The order stays specific-before-generic; `route names` before `reports` is what once emptied two of the requirement's most interesting rows.
+  - Honest limits, in the document: a probe is a pattern, not a compiler — it locates a literal and does not decide whether that literal is load-bearing. `docs/` is excluded, non-scannable extensions are not searched, `Tier1/` is listed by path and never opened, and `aws-account-id` matches any bare twelve-digit run, so a hit there is a shape to look at — masked either way.
 
-- [ ] **SIMON-000-005** — Locate duplicate business concepts implemented under different names across repositories and same names with different semantics.
-  - Status: FAIL
-  - Overturned on review: Both halves are closed on a narrower reading. (a) "Same names with different semantics" is answered only over JS/TS module exports: `compareConcepts` consumes `codeOf`, gated by /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/, so schema, migration and API vocabulary are never compared — a restriction absent from the document's honest limits. Verified miss: `enum LedgerKind` exists in both apps/web/prisma/schema.prisma files with different members (source SPEND/REIMBURSEMENT/ADJUSTMENT; this repo also RECEIPT and REVERSAL) — the same name with different semantics in the financial ledger, the same divergence the ledger's own headline (deleteLedgerEntry vs reverseLedgerEntry) points at — and it appears nowhere in docs/architecture/simon-concept-collisions.md. (b) "Duplicate business concepts implemented under different names across repositories" locates nothing: the single CANDIDATE row pairs apps/web/scripts/generate-roster.mjs with apps/web/scripts/roster-data.sample.mjs, two fixture scripts that BOTH trees carry, so it is not a cross-repository pair; and the Jaccard metric scores on shared export NAMES, which a genuine rename by construction does not have. The claimed mutation reproduces (un-anchoring the `export function` pattern reds `not ok 14`, 17/1, restored 18/18).
-  - Code: `tools/simon-convergence-inventory.mjs` — `exportsOf` (line 433),
-    `compareConcepts` (line 526), `FRAMEWORK_CONTRACT_EXPORTS` (line 487),
-    `SYNONYM_THRESHOLD` (line 472), `renderConcepts` (line 1266)
-  - Caller: as above — `tests/simon-convergence-inventory.test.mjs:57`, reached
-    by `npm run test:platform` through `tools/run-platform-tests.mjs:32`
+- [x] **SIMON-000-005** — "Locate duplicate business concepts implemented under different names across repositories and same names with different semantics."
+  - Status: PASS
+  - Replaces the `Overturned on review` row of 2026-08-17. Both halves the review named are closed, and each is checked here against the review's own example.
+  - Provenance: as with SIMON-000-004, **the code landed in commit `99585c6` in an earlier wave and no ledger row was written for it.** This row is verification plus a fresh mutation proof, not new implementation.
+  - Code: `tools/simon-convergence-inventory.mjs` — `parsePrismaSchema` (297), `compareSchemaConcepts` (838), `nameTokens` (952), `CROSS_NAME_MIN_TOKEN` (959), `CROSS_NAME_SHAPE_JACCARD` (960), `sharedNameTokens` (971), `strengthOf` (987), `crossNameExportCandidates` (1002), `exportsOf` (602), `compareConcepts` (695), `renderConcepts` (1786)
+  - Caller: `tests/simon-convergence-inventory.test.mjs:57`; reached by `npm run test:platform` through `tools/run-platform-tests.mjs:26` and `.github/workflows/ci.yml:155`
   - Artifact: `docs/architecture/simon-concept-collisions.md`
-  - Tests: `tests/simon-convergence-inventory.test.mjs` — the decided/candidate
-    consistency case and the `exportsOf` unit case, inside the 18
-  - Evidence, verbatim: `concepts: 26 same-name-different-shape, 4 symbol-kind
-    collisions, 1 candidates` from the generator; 28/28 green as above.
-  - Mutations: (a) production code — the `export function` pattern in `exportsOf`
-    un-anchored (`^\s*` removed), generator re-run → `not ok 14 - the export
-    scanner reads declarations rather than any word after "export"`, `# pass 17 /
-    # fail 1`; the fixture's commented-out `// export function commentedOut()`
-    starts counting as an export. (b) the document mutation and the render check
-    above cover the rendering. 0 survivors.
-  - Three findings, kept apart because they are three claims of different
-    strength — which is the only honest way to report a similarity metric:
-    - **Same name, different shape — DECIDED. 26 pairs.** Two matter for
-      authorization: `apps/web/src/lib/rbac.ts` exports `isFinanceRole` in the
-      pilot and not here, while this repository added `decideFinanceAction`,
-      `carriesFinanceAuthority`, `acceptsWrites`, `OrgWriteTarget` and `OrgRef`.
-      `apps/web/src/lib/approvals.ts` exports `canViewApproval` in the pilot and
-      eleven different names here. And
-      `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts` has
-      `deleteLedgerEntry` in the pilot against `reverseLedgerEntry` here — a
-      delete against a reversal is a semantic divergence in a financial ledger,
-      not a rename.
-    - **One identifier, two declaration kinds — DECIDED. 4.** `ButtonProps`,
-      `Capability`, `DashboardLine` and `TabItem` each exist on both sides with a
-      different declaration kind, and `TabItem` is a function in `apps/web` and
-      an interface in `apps/system-studio`.
-    - **Different names, overlapping shape — CANDIDATE. 1.** Labelled
-      `CANDIDATE` in the row itself, with the threshold and the minimum export
-      count printed beside the table so the list can be reproduced and argued
-      with. A metric proposes; `SIMON-010-001` adjudicates.
-  - The first run of the candidate metric produced eight pairs at Jaccard 1.0
-    between unrelated admin pages and a layout. They were scoring a perfect match
-    for agreeing about a framework contract: every Next.js page exports
-    `default`, and most export `metadata` and `dynamic`. Those eighteen
-    framework-dictated names are now excluded from the metric AND ONLY from the
-    metric — the decided tables still count them, because a module that stopped
-    exporting `default` genuinely changed shape. The minimum own-export count is
-    4, and a pair carried by both trees is counted once rather than twice in each
-    direction. The guard test asserts no candidate is scored on an excluded name.
-  - Honest limits: the export scan is textual, like the baseline generator's
-    import scan, so a name produced by a barrel chain or a runtime assignment is
-    invisible to it. The two repositories share history — 184 module pairs at the
-    same path export exactly the same names — which is why the decided tables
-    report only the pairs that DIFFER. And a Jaccard candidate is a question, not
-    an answer.
+  - Tests: `tests/simon-convergence-inventory.test.mjs` — 24 cases; 14, 15, 18, 19 and 20 are this requirement's
+  - Evidence, verbatim:
+    - `node tools/simon-convergence-inventory.mjs` -> `concepts: 26 same-name-different-shape, 4 symbol-kind collisions, 1 candidates` and `schema concepts: 12 same-name-different-members, 16 one-sided, 1 strong rename candidates`
+    - `node --test tests/simon-convergence-inventory.test.mjs` -> `# tests 24 / # pass 24 / # fail 0`
+  - The first half, closed. "Same names with different semantics" was answered only over JS/TS module exports, because `compareConcepts` consumed `codeOf`, gated by a JS/TS extension test — so schema, migration and API vocabulary were never compared, and the divergence that matters most in a financial ledger was invisible. `compareSchemaConcepts` now compares Prisma `model` and `enum` declarations across both pinned schemas: **12 same-name-different-members, 16 declared on one side only.** The review's own example is row 65 of the document — `enum LedgerKind`, `apps/web/prisma/schema.prisma:739` against `:926`, target-only members `RECEIPT` `REVERSAL`. The guard asserts it by name and reds if it stops being reported.
+  - The second half, closed. "Duplicate business concepts implemented under DIFFERENT names" could not be answered by a Jaccard over shared export NAMES: a genuine rename has no shared name, so the metric scored 0 on every one of them by construction and the table located nothing. Renames are now located by TWO signals — a shared concept word of at least five letters (`CROSS_NAME_MIN_TOKEN`) plus overlapping shape (member Jaccard >= 0.3 for declarations, same module at the same path for exports) — with the strength stated rather than a ranked single number: two shared words is **strong**, one is **weak**, weak rows are counted and sampled. The one the review said was invisible is now the single strong module-export row: `deleteLedgerEntry` / `reverseLedgerEntry` in `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts`, sharing `entry` and `ledger`. A delete against a reversal in a financial ledger is a semantic divergence, not a rename, and it is now on the page. Two weak schema renames as well (`ApprovalStatus`/`EventStatus`, `Budget`/`BudgetLine`).
+  - Mutations, one literal at a time, generator re-run after each, each restored and re-verified 24/24:
+    1. `compareSchemaConcepts` stops indexing enums (`['models', 'enums']` -> `['models']`) -> `not ok 19 - the schema comparison sees the vocabulary the export scan structurally cannot`, error `LedgerKind is not reported, and it differs in both trees — this is the miss this section exists to close`, `# pass 23 / # fail 1`. Exactly one case: the first half is guarded on its own.
+    2. `CROSS_NAME_MIN_TOKEN` `5` -> `9`, so no word qualifies as a concept word -> `not ok 20 - a rename is located by two signals, and the strong ones are the strong ones`, 23/1; `sharedNameTokens('deleteLedgerEntry','reverseLedgerEntry')` recomputes as `[]` against the expected `['entry','ledger']`.
+    3. `parsePrismaSchema`'s enum branch pushes a constant -> `not ok 19` among four reds, 20/4 — the parser both halves stand on.
+    0 survivors.
+  - Still true from the earlier work, and still the reason the tables are three claims of different strength: the two repositories share history, 184 module pairs at the same path export exactly the same names, so the decided tables report only the pairs that DIFFER; and the eighteen framework-dictated export names (`default`, `metadata`, `dynamic`, the HTTP verbs) are excluded from the similarity metric AND ONLY from the metric, because a module that stopped exporting `default` genuinely changed shape.
+  - Honest limits, in the document: the export scan is textual, so a name produced by a barrel chain or a runtime assignment is invisible; the schema comparison reads Prisma declarations, so a concept that lives only in a raw SQL migration and never reaches the schema is not compared; and a candidate is a question, not an answer — `SIMON-010-001` adjudicates.
 
-- [ ] **SIMON-000-006** — Build a package-by-package and capability-by-capability comparison: `PARENT_CANONICAL`, `SOURCE_SUPERIOR`, `MERGE_REQUIRED`, `CONFIG_ONLY`, `DATA_ONLY`, `REIMPLEMENT_REQUIRED`, `DEPRECATE_AFTER_PROOF`, or `UNKNOWN`.
-  - Status: FAIL
-  - Overturned on review: The guard is real and non-circular — I confirmed both claimed mutations: relabelling `Search` SOURCE_SUPERIOR in the snapshot reds `not ok 10` + `not ok 11` (16/2), and short-circuiting `disposeCapability` to return PARENT_CANONICAL then regenerating reds `not ok 11` (17/1) even though the test never calls that function. What fails is the requirement, not the harness: PARENT_CANONICAL is asserted for 23 of 25 capabilities from path presence alone, including `Database schema` (1|1|0) and `Authorization` (2|14|0), while the SAME snapshot proves the content diverges — apps/web/src/lib/rbac.ts has source-only export `isFinanceRole`, apps/web/src/lib/approvals.ts has source-only `canViewApproval`, and the two prisma schemas differ (LedgerKind members). The generator's own legend defines UNKNOWN as "the label needs a judgement this evidence cannot make", which is exactly this case; instead a positive verdict is recorded, i.e. unknown reported as a value — the rule this codebase calls central. The "honest limit" presents this as an evidence limit, but the generator already reads file content (for the assumption scan and the export scan), so a source file at a shared path carrying code the parent lacks can never raise MERGE_REQUIRED by rule, not for want of evidence — which makes the actionable output wrong in the direction that matters for an absorption decision (a pilot capability the parent lacks is labelled "the parent is canonical").
-  - Code: `tools/simon-convergence-inventory.mjs` — `DISPOSITIONS` (line 659),
-    `disposeCapability` (line 670), `disposePackages` (line 710),
-    `renderDisposition` (line 1348). The capability probes are the baseline
-    generator's `PROBES`, imported rather than re-declared, so the two documents
-    cannot disagree about what a capability is.
-  - Caller: as above
+- [x] **SIMON-000-006** — "Build a package-by-package and capability-by-capability comparison: `PARENT_CANONICAL`, `SOURCE_SUPERIOR`, `MERGE_REQUIRED`, `CONFIG_ONLY`, `DATA_ONLY`, `REIMPLEMENT_REQUIRED`, `DEPRECATE_AFTER_PROOF`, or `UNKNOWN`."
+  - Status: PASS
+  - Replaces the `Overturned on review` row of 2026-08-17. The review's objection is answered at its root rather than argued with.
+  - Provenance: as with SIMON-000-004 and -005, **the code landed in commit `99585c6` in an earlier wave and no ledger row was written for it.** This row is verification plus a fresh mutation proof.
+  - Code: `tools/simon-convergence-inventory.mjs` — `digestOf` (1064), `sharedContentDivergence` (1066), `DISPOSITIONS` (1098), `disposeCapability` (1109), `disposePackages` (1164), `renderDisposition` (1958). The capability probes are the baseline generator's `PROBES`, imported rather than re-declared, so the two documents cannot disagree about what a capability is.
+  - Caller: `tests/simon-convergence-inventory.test.mjs:57`; reached by `npm run test:platform` through `tools/run-platform-tests.mjs:26` and `.github/workflows/ci.yml:155`
   - Artifact: `docs/architecture/simon-capability-disposition.md`
-  - Tests: `tests/simon-convergence-inventory.test.mjs` — the label-vocabulary
-    case, the capability re-derivation case and the package re-derivation case,
-    inside the 18
-  - Evidence, verbatim: `disposition: 25 capabilities, 19 packages`;
-    `25 capabilities: MERGE_REQUIRED 2, PARENT_CANONICAL 23` and
-    `19 workspaces across both repositories: MERGE_REQUIRED 1, PARENT_CANONICAL 18`
-    in the rendered document; 28/28 green.
-  - Mutations: (a) snapshot — capability `Search` relabelled `SOURCE_SUPERIOR` →
-    `not ok 10 - every disposition is a label the bible enumerates, and never one
-    a file list cannot decide` AND `not ok 11 - every capability disposition
-    re-derives from the baseline file lists`, `# pass 16 / # fail 2`.
-    (b) production code — `disposeCapability` short-circuited to return
-    `PARENT_CANONICAL` for every capability, generator re-run → `not ok 11`,
-    `# pass 17 / # fail 1`. That second one is the important one: the test does
-    NOT call `disposeCapability`. It rebuilds each row's `pattern` and `exclude`
-    out of the row itself, recounts against the baseline file lists, and
-    re-decides the label with the rule written out again in the test — so a
-    mutation inside the generator cannot move both sides at once. 0 survivors.
-  - Which four of the eight labels this evidence can assign, stated in the
-    document rather than implied: `PARENT_CANONICAL`, `MERGE_REQUIRED`,
-    `REIMPLEMENT_REQUIRED` and `UNKNOWN`. `SOURCE_SUPERIOR`, `CONFIG_ONLY`,
-    `DATA_ONLY` and `DEPRECATE_AFTER_PROOF` are judgements about quality, intent
-    and proof, and nothing derivable from two file lists supports one — so this
-    generator never assigns them, and the guard test reds if it does. A row that
-    would need one is `UNKNOWN` with the reason printed, which is the bible's own
-    eighth label and the honest answer.
-  - The three findings that are actionable now:
-    - `Frontend components` is `MERGE_REQUIRED`: the pilot has
-      `apps/web/src/components/brand/TenantBackdrop.tsx` and
-      `apps/web/src/components/brand/TenantSplash.tsx`, and this repository has
-      neither. Tenant branding is exactly the thing §1 says Simon may keep, so
-      those two are a real absorption item.
-    - `Unit tests` is `MERGE_REQUIRED` on five specs the pilot has and this
-      repository does not, three of them the document-sanitisation tests
-      (`content.test.ts`, `mammoth-sanitize.test.ts`, `sanitize.test.ts`).
-      Losing a sanitiser's tests in a convergence is how a sanitiser quietly
-      stops being one.
-    - `apps/web/package.json` is `MERGE_REQUIRED` on two dependencies the pilot
-      declares and this repository's manifest does not; the document names them
-      and the guard test re-derives the claim from both manifests.
-  - Honest limit: a capability disposition is computed from PATHS, not from
-    behaviour. `PARENT_CANONICAL` means the target tree holds every path the
-    source probe matched — it does not mean the target implementation is as good,
-    and it never claims to. 23 of 25 land there because the parent was branched
-    from the pilot, so most source paths are literally present here.
+  - Tests: `tests/simon-convergence-inventory.test.mjs` — 24 cases; 10, 11, 12 and 13 are this requirement's
+  - What was wrong: a disposition computed from path presence alone said `PARENT_CANONICAL` for 23 of 25 capabilities, including `Database schema` (1|1|0) and `Authorization` (2|14|0) — while the SAME snapshot proved the content diverged (`rbac.ts` has a source-only export, the two schemas differ on `LedgerKind`). The generator's own legend defines `UNKNOWN` as "the label needs a judgement this evidence cannot make", and that was exactly the case; a positive verdict was recorded instead. Wrong in the direction that matters: a pilot capability the parent does not actually hold was labelled "the parent is canonical".
+  - What it does now: `sharedContentDivergence` digests every shared path on both sides (sha256 over LF-normalised text, first 16 hex digits — a line ending is not a divergence) and `disposeCapability` consumes that map. The counts inverted: **`25 capabilities: MERGE_REQUIRED 24, PARENT_CANONICAL 1`**, over `166/254 shared paths divergent`. `PARENT_CANONICAL` now means "every source path is present in the target tree AND all shared paths are byte-identical", and a shared path whose content could not be read is `UNKNOWN` with the reason printed rather than a verdict. Both capabilities the review named are now correct:
+    - `| Database schema | 1 | 1 | 0 | 1 | 1 | MERGE_REQUIRED | every source path is present in the target tree, but 1 of 1 shared path(s) differ in content, so the target does not hold the source implementation |`
+    - `| Authorization | 2 | 14 | 0 | 2 | 2 | MERGE_REQUIRED | … | apps/web/src/lib/admin/guard.ts apps/web/src/lib/rbac.ts |`
+  - Evidence, verbatim:
+    - `node tools/simon-convergence-inventory.mjs` -> `disposition: 25 capabilities, 20 packages, 166/254 shared paths divergent`
+    - `node --test tests/simon-convergence-inventory.test.mjs` -> `# tests 24 / # pass 24 / # fail 0`
+    - `node tools/simon-convergence-inventory.mjs --check` -> `ok — 4 documents match docs/architecture/simon-convergence-inventory.json`
+  - Mutations, one literal at a time, generator re-run after each, each restored and re-verified 24/24:
+    1. `disposeCapability`'s divergence filter `divergence.get(f)?.identical === false` -> `=== 'zzz'`, so no shared path can ever count as divergent and every capability falls back to `PARENT_CANONICAL` — the exact defect the review found, re-injected -> `not ok 11 - every capability disposition re-derives from the baseline file lists and the divergence table`, errors `Frontend framework: divergent 0 recounts as 1` and `Frontend framework: says PARENT_CANONICAL, the rule gives MERGE_REQUIRED`, `# pass 23 / # fail 1`.
+    2. `digestOf` `.slice(0, 16)` -> `.slice(0, 3)` -> `not ok 12 - the divergence table is two trees compared, and an "identical" claim is falsifiable`, errors `.github/workflows/ci.yml carries something that is not a digest` and two more, 23/1. The guard re-checks the SHAPE of every digest rather than trusting the verdict computed from it.
+    0 survivors. The earlier proof still holds and is the reason this guard is not circular: the test does not call `disposeCapability` — it rebuilds each row's `pattern` and `exclude` out of the row itself, recounts against the baseline file lists, and re-decides the label with the rule written out again.
+  - Which four of the eight labels this evidence can assign, stated in the document rather than implied: `PARENT_CANONICAL`, `MERGE_REQUIRED`, `REIMPLEMENT_REQUIRED` and `UNKNOWN`. `SOURCE_SUPERIOR`, `CONFIG_ONLY`, `DATA_ONLY` and `DEPRECATE_AFTER_PROOF` are judgements about quality, intent and proof; nothing derivable from two trees supports one, so this generator never assigns them and the guard reds if it does. A row that would need one is `UNKNOWN` with the reason printed — the bible's own eighth label and the honest answer.
+  - Honest limit, now much narrower than it was: a disposition is computed from paths AND from content digests, not from behaviour. `MERGE_REQUIRED` on a shared path means the two files are not the same bytes; it does not say which side is better, and it never claims to.
 
 - [x] **SIMON-000-007** — Inventory source licenses, generated artifacts, vendored code, binaries, large files, secret history indicators, vulnerable dependencies, and unsupported runtimes before importing.
   - Status: PASS
@@ -586,39 +457,58 @@ which is the one check here whose absence would not show up as a wrong number.
 
 ## SIMON-000-014 — the data dictionary and entity matrix, both systems, both pinned commits
 
-- [ ] **SIMON-000-014** — "Produce current data dictionary and entity/field/key/constraint/index/retention/owner matrix for both systems."
-  - Status: FAIL
-  - Overturned on review: Every one of mutations A-F reproduces exactly as claimed, and the artifact itself is real and complete — it fails check 5, machine portability. Baseline: `node tools/simon-data-dictionary.mjs --check` = ok, `node --test tests/architecture/simon-data-dictionary.test.mjs` = 13/13. A (entityShape index extraction -> `[]`, regenerated) -> not ok 4 AND not ok 8, 11/2. B (Budget.owner_domains -> ['not-a-domain']) -> not ok 1 and not ok 10, 11/2. C (Budget.retention_fields -> ['createdAt'], doc re-rendered from the mutated snapshot) -> not ok 9 only, 12/1. D (source pinned_commit -> forty zeros, re-rendered) -> not ok 2, 3, 4, 12, 9/4. E (heading -> `entity matrixZZZ`) -> not ok 1, 12/1. F (`mapped_to: "president@example.edu"`) -> not ok 13, 12/1. Each restored to 13/13. Coverage against the requirement's sentence is genuinely complete (entity/field/key/constraint/index/retention/owner, both sides, retention as NONE DECLARED and owner as NO ACCESSOR rather than as zero), and the target pin is not stale: the 52 models in the snapshot equal the 52 in apps/web/prisma/schema.prisma today, name for name. THE PROBLEM: 5 of the 13 cases (3, 4, 7, 8, 12) call `schemaAt(pinned_commit)` and hard-assert the blob, and neither pinned object exists on any machine but this one. `git for-each-ref --contains 47c1128cb55953b11bedc47927508bc5d622b159` returns only refs/remotes/live/HEAD, refs/remotes/live/main, refs/remotes/live/tenant/cognito-auth — the source pin lives solely in this clone's second remote (`live` -> satvikOS/Tenure), which a CI checkout of Tenure-Parent does not have at all; and the target pin 69b9fb74, though an ancestor of HEAD, is absent under `actions/checkout@v4`'s default `fetch-depth: 1`. `readBlobs` returns an empty Map for a missing object (tools/simon-absorption-inventory.mjs:695, `parts.length < 3 // missing`), so `schemaAt` yields undefined and `assert.ok(text, "...is not readable at <sha>")` fails — exactly the shape mutation D produced (not ok 3/4/12). ci.yml line 88 runs `npm run test:platform`, which recurses tests/, so committing this file reds CI for everybody. The repository already knows this and already solved it: tests/simon-absorption-inventory.test.mjs:175-193 does the same re-derivation inside `if (files === null) { t.diagnostic('...CI checks out at depth 1, and ' + SOURCE_REF + ' is only present where `git fetch live` has run...'); continue }`. The new guard skipped that pattern. Small fix, but as committed it is a red CI on every other machine.
-  - Code: `tools/simon-data-dictionary.mjs` — `parseSchema`, `entityShape`, `accessorOf`, `domainOf`, `accessorsOf`, `commitOf`, `collect`, `render`, `RETENTION_FIELD_PATTERNS`, `SCHEMA_PATH`. `readBlobs` and `byCodepoint` are imported from `tools/simon-absorption-inventory.mjs` and `DOMAINS` from `tools/ownership-map.mjs` rather than reimplemented — the byte-accurate `cat-file --batch` header parse and the domain table each already exist and a second copy of either would be a defect.
-  - Caller: `tests/architecture/simon-data-dictionary.test.mjs` imports it; `tools/run-platform-tests.mjs` discovers it and `npm run test:platform` runs it in CI. Confirmed: `node tools/run-platform-tests.mjs` lists `tests\architecture\simon-data-dictionary.test.mjs`.
-  - Artifacts: `docs/architecture/simon-data-dictionary.md` (people), `docs/architecture/simon-data-dictionary.json` (machine — every entity, every field, every attribute, both sides).
-  - Tests: `tests/architecture/simon-data-dictionary.test.mjs` — 13 cases, `# tests 13 / # pass 13 / # fail 0`.
+- [x] **SIMON-000-014** — "Produce current data dictionary and entity/field/key/constraint/index/retention/owner matrix for both systems."
+  - Status: PASS
+  - Code: `tools/simon-data-dictionary.mjs` — `parseSchema` (83), `entityShape` (128), `accessorOf` (167), `domainOf` (170), `accessorsOf` (182), `commitOf` (212), `collect` (270), `render` (368). Unchanged this session; its coverage against the requirement's sentence was already confirmed on review — entity/field/key/constraint/index/retention/owner, both sides, with retention as **NONE DECLARED** and owner as **NO ACCESSOR** rather than as zero.
+  - Caller: `tests/architecture/simon-data-dictionary.test.mjs:8` imports it; `tools/run-platform-tests.mjs:26` discovers that spec by recursing `tests/`, and `.github/workflows/ci.yml:155` runs `npm run test:platform`.
+  - Artifacts: `docs/architecture/simon-data-dictionary.md` (people), `docs/architecture/simon-data-dictionary.json` (machine). Byte-identical to what was committed — `node tools/simon-data-dictionary.mjs --check` -> `ok — 2 artifacts match the pinned trees`.
+  - Tests: `tests/architecture/simon-data-dictionary.test.mjs` — 13 cases, `npm run test:platform` (bare `node --test`, not jest)
+  - What was wrong and is now fixed: 5 of the 13 cases (3, 4, 7, 8, 12) called `schemaAt(pinned_commit)` and hard-asserted the blob. Neither pinned object exists on every machine — the source pin lives only in a clone that has `live` configured and fetched, and `actions/checkout@v4` clones at depth 1, so even the target pin, an ancestor of `main`, is absent there. `readBlobs` answers a missing object by omission, so `schemaAt` returned `undefined` and `assert.ok(text, …)` turned "we could not look" into "the snapshot is wrong". The repository had already settled the shape in `tests/simon-absorption-inventory.test.mjs:175` and this guard had not used it.
+  - The fix, and why it is not a blanket skip: a new `schemaOrSkip(t, which, commit)` returns `null` and emits a diagnostic naming `git fetch live` where the object is absent — and every one of the five cases now carries snapshot-internal assertions BEFORE the git call. Case 3/7: the entity list equals the dictionary's own keys, no entity is listed twice, every entity's field count equals its dictionary length, no enum is listed twice and none declares zero members. Case 4/8: `accessor` equals `accessorOf(entity)` (a pure function), every primary key, index, unique constraint and foreign key names a field that entity actually has, and the non-vacuity checks that some entity has a key, an index and a foreign key. Case 12: every reported enum divergence agrees with the snapshot's own per-side enum lists AND nothing that differs is missing from the list. A skipped re-derivation therefore never leaves a case asserting nothing.
   - Evidence, verbatim:
-    - `node tools/simon-data-dictionary.mjs` -> `data dictionary: source 39 entities, target 52; 13 target-only, 11 with differing field counts, 1 enumerations differing`
-    - `node tools/simon-data-dictionary.mjs --check` -> `ok — 2 artifacts match the pinned trees`
-    - `DETERMINISTIC: all 3 artifacts byte-identical across two runs`
-    - source side, from the document: `39 entities, 22 enumerations` at `47c1128cb55953b11bedc47927508bc5d622b159`; target `52 entities, 24 enumerations, 678 fields. 50 entities declare no retention field; 3 have no accessor in the tree.` at `69b9fb7499449154c7dda94dc8cef22ab3540ace`
-  - Each column of the requirement's sentence, and where it is answered:
-    - **entity** and **field** — the data-dictionary section, one table per entity: field, type (with `[]` and `?`), nullable, attributes.
-    - **key** — `Primary key` from `@id`/`@@id`.
-    - **constraint** — `Unique constraints` from `@unique` and `@@unique`, and `Foreign keys` from `@relation(fields:…, references:…)` with the `onDelete` action printed, because a Cascade and a Restrict are different migration problems.
-    - **index** — `Indexes` from `@@index`.
-    - **retention** — the fields on the entity matching a printed pattern list (`expiresAt`, `retainUntil`, `purgeAt`, `deletedAt`, `archivedAt`, `ttl`, `validUntil`, …). An entity with none reads **NONE DECLARED**, not UNKNOWN: the search ran and found nothing, and collapsing those two is the bug this codebase most often finds.
-    - **owner** — the platform domain(s) whose files reach the entity through the Prisma client accessor (`model Foo` -> `db.foo.`), resolved with the same domain table `tools/ownership-map.mjs` enforces over file paths. An entity nothing reaches reads **NO ACCESSOR**, which is also a finding: a table no code touches is a migration question.
-  - Three findings that are actionable now:
-    1. **50 of 52 target entities and 37 of 39 source entities declare no retention mechanism at all.** The whole schema carries one `expiresAt`. Everything the absorption says about retention (SIMON-050-005, SIMON-060-012, SIMON-130-008) starts from that number.
-    2. **`LedgerKind` differs.** Source `SPEND, REIMBURSEMENT, ADJUSTMENT`; target adds `RECEIPT` and `REVERSAL`. This is the same-name-different-semantics case a reviewer used to overturn SIMON-000-005, now located by a generator rather than by hand, and pinned by a named test case.
-    3. **`Role` LOSES two fields** in the target (15 -> 13) while `LedgerEntry` gains twenty-one (19 -> 40) and `ApprovalStep` five. A field that exists in the pilot and not in the parent is a migration that has somewhere to put the data or does not.
-  - Mutations, one at a time, each restored and re-verified 13/13:
-    1. Production code — `entityShape`'s index extraction short-circuited to `[]`, generator re-run -> `not ok 4` and `not ok 8 - every key, constraint and index count re-derives from the schema`, `# pass 11 / # fail 2`. The important one: the test does NOT call `entityShape`. It recounts `@@index` off the raw block attributes and compares, so a bug inside the generator cannot move both sides.
-    2. Snapshot — `Budget.owner_domains` -> `["not-a-domain"]` -> `not ok 1 - the document is exactly what the snapshot renders`, `not ok 10 - every owner domain is a real domain`, 11/2.
-    3. Snapshot — `Budget.retention_fields` -> `["createdAt"]`, documents re-rendered from the mutated snapshot so only the guard under test could red -> `not ok 9 - "NONE DECLARED" retention is a search that ran, not one that did not`, 12/1.
-    4. Snapshot — source `pinned_commit` -> forty zeros, re-rendered -> `not ok 2 - both sides are the commits the baseline pinned, not commits re-resolved here`, `not ok 3`, `not ok 4`, `not ok 12`, 9/4.
-    5. Document — heading hand-edited -> `not ok 1`, 12/1.
-    6. Snapshot — `"mapped_to": "president@example.edu"` -> `not ok 13 - the artifacts carry no row of anybody's data`, 12/1. **The privacy control demonstrably fails when it should.**
-    0 survivors of six.
-  - Why the commits come out of the baseline's snapshot rather than being resolved again: the same property `tools/simon-convergence-inventory.mjs` keeps. Resolving them here would let an analysis silently re-pin the baseline underneath itself, and two documents about "the two trees" would then be describing three. Mutation 4 is that guard failing.
-  - Honest limits: no row of data is read — a schema is a shape, and rule 8 of this ledger is that a single real row is not evidence whatever it demonstrates. The accessor scan is textual, so an access made through a variable rather than `db.<entity>.` is invisible and the document says so where the table is; that is why `NO ACCESSOR` is a finding to look at rather than proof a table is dead. Retention is a field-name search, so a retention policy implemented in a job rather than a column is not on this page.
+    - before, in a simulated depth-1 checkout (`GIT_OBJECT_DIRECTORY` pointed at an empty directory): `not ok 3`, `not ok 4`, `not ok 7`, `not ok 8`, `not ok 12`, `# tests 13 / # pass 8 / # fail 5`, error `apps/web/prisma/schema.prisma is not readable at 47c1128cb55953b11bedc47927508bc5d622b159`
+    - after, same command: `# tests 13 / # pass 13 / # fail 0`, with `source: … Re-derivation from git skipped; the snapshot-internal checks above still ran.`
+    - with git available, before and after: `# tests 13 / # pass 13 / # fail 0`
+    - all five Simon specs together: `# tests 71 / # pass 71 / # fail 0`
+  - Mutations, one at a time, **each run in the simulated shallow checkout** — the environment where a vacuous fix would show — and each restored and re-verified 13/13 afterwards:
+    1. snapshot: source `Account.fields` incremented by one -> `not ok 3 - source — every entity is a model declared in that tree's schema, and none is missing`, 10/3 (`not ok 1` and `not ok 11` are the expected collateral of editing a snapshot the document renders from).
+    2. snapshot: target `Account.unique_constraints[0]` -> `zzzNotAField` -> `not ok 8`, error `Account constraint names "zzzNotAField", which is not one of its fields`, 11/2.
+    3. snapshot: `comparison.enums_differing[0].source` truncated, document re-rendered from the mutated snapshot so only the enum rule could red -> `not ok 12 - an enumeration carried by both trees with different members is reported`, 12/1 — exactly one case.
+    0 survivors.
+  - Relation to `124f970` ("CI can now read the tree the absorption tests compare against"): that commit makes CI fetch both pinned commits before the platform suite, trying `origin` then `live`. It fixes the common case; its own fallback line says `$sha NOT fetchable from either remote — the test that reads it will say so`, and until now what the test did in that case was fail. Now it says so. The two changes are complementary and neither replaces the other.
+  - Honest limit, unchanged: the owner column is a textual accessor scan, so an access made through a variable rather than `db.<entity>.` is invisible to it, and the document says so where the table is.
+
+- [x] **SIMON-000-015** — "Produce route/API/event/workflow/permission/role/report/integration mapping matrices."
+  - Status: PASS
+  - Code: `tools/simon-mapping-matrices.mjs` (new, 568 lines) — `routeUrlOf` (84), `methodsOf` + `HTTP_METHODS` (93), `permissionExportsOf` + `PERMISSION_NAME` (117), `eventsOf` + `EVENT_KINDS` (140), `WORKFLOW_ENUM`/`ROLE_ENUM` (176), `REPORT_PATH`, `INTEGRATIONS` (190), `side` (215), `matrixOf` (310), `AXES` (390), `collect`, `render`, `digestOf`, `STATES`. The Prisma parse is `parseSchema` imported from `tools/simon-data-dictionary.mjs` and the blob reader is `readBlobs` imported from `tools/simon-absorption-inventory.mjs` — neither is reimplemented, for the reason this repository already carries a note about.
+  - Caller: `tests/architecture/simon-mapping-matrices.test.mjs:8` imports it; `tools/run-platform-tests.mjs:26` (`discover`, recursive over `tests/`) finds that spec — confirmed with `node tools/run-platform-tests.mjs --list` printing `tests\architecture\simon-mapping-matrices.test.mjs` — and `.github/workflows/ci.yml:155` runs `npm run test:platform`. So the module is reached by the suite CI runs, not only by a person typing the generator's name.
+  - Artifacts: `docs/architecture/simon-mapping-matrices.md` (people, 340 lines), `docs/architecture/simon-mapping-matrices.json` (machine — every row with its state, its reason, and its cited paths on both sides)
+  - Tests: `tests/architecture/simon-mapping-matrices.test.mjs` — 13 cases, `npm run test:platform` (bare `node --test`, not jest)
+  - Evidence, verbatim:
+    - `node tools/simon-mapping-matrices.mjs` -> `mapping matrices: route 58, API 34, event 10, workflow 28, permission 68, role 6, report 14, integration 10; source-only 2`
+    - `node --test tests/architecture/simon-mapping-matrices.test.mjs` -> `# tests 13 / # pass 13 / # fail 0`
+    - all five Simon specs together -> `# tests 71 / # pass 71 / # fail 0`
+    - `node tools/simon-mapping-matrices.mjs --check` -> `ok — 2 artifacts match the pinned trees`
+    - two consecutive runs, SHA-256 compared -> `DETERMINISTIC: both artifacts byte-identical across two runs`
+  - Mutations, one literal at a time, generator re-run after each, each restored and re-verified 13/13:
+    1. `routeUrlOf` stops dropping `(group)` segments -> `not ok 6 - a route identity is the URL its own path answers on, derived again here`, 12/1.
+    2. `methodsOf` loses the destructured-export branch -> `not ok 7 - an API identity is a real HTTP method on the URL its own handler answers on`, 12/1.
+    3. `PERMISSION_NAME` drops its `^is…Role` alternative -> `not ok 8 - every permission name really is one the stated selector admits`, 12/1.
+    4. `ROLE_ENUM` `/(?:Role|Scope)$/` -> `/Role$/` -> `not ok 11`, `PRESIDENT is a role in both trees and the role matrix does not carry it`, 12/1.
+    5. `WORKFLOW_ENUM` `/Status$/` -> `/ApprovalStatus$/` -> `not ok 11`, `EventStatus.PENDING_APPROVAL is a declared workflow state and the matrix does not carry it`, 12/1.
+    6. `digestOf` `.slice(0, 16)` -> `.slice(0, 0)`, so no two files can differ -> `not ok 12 - a BOTH row's verdict re-derives from digests computed here`, 12/1.
+    7. every row compared as a declaration (`a.compare === 'declaration'` -> `a.compare !== 'zzz'`) -> `not ok 4` AND `not ok 12`, 11/2.
+    8. snapshot: one route row `BOTH — differs` -> `SOURCE ONLY`, totals adjusted, **document re-rendered from the mutated snapshot** so only the state rule could red -> `not ok 4 - every state is one of the four, and it is the state the two file lists give`, 12/1.
+    0 survivors. Mutation 4 is the one worth keeping: it SURVIVED the first version of the guard, because that case re-derived the expected members using the very selector it was checking. Naming six roles spanning both declared enumerations fixed it. A re-derivation that shares a constant with the thing it re-derives is not a re-derivation.
+  - What makes this a matrix rather than a second file list, stated in the document itself: SIMON-000-002 already lists every path in both trees and SIMON-000-006 already compares them path by path. Both key on the PATH. Every matrix here keys on the thing's own IDENTITY — the URL a route answers on, the method an API exposes, the state a workflow can be in, the name of a role — and only then cites the paths. `(group)` segments are dropped, so `apps/web/src/app/(app)/dashboard/page.tsx` is the route `web /dashboard`; the guard reds if a routing group leaks into an identity.
+  - Four states, and the vocabulary is closed: `BOTH — same implementation` (every backing file byte-identical after line-ending normalisation), `BOTH — differs`, `SOURCE ONLY` (the absorption items), `TARGET ONLY`. The two enumeration axes are compared as DECLARATIONS rather than through the digest of the schema file they live in — `ApprovalStatus.APPROVED` is declared identically on both sides, and letting the file decide would report all 25 shared workflow states as divergent for a reason that has nothing to do with any of them. The guard reds if any other axis is compared that way.
+  - The three findings that are actionable now:
+    - **The pilot's authorization surface has two exports this repository does not have.** `canViewApproval` (`apps/web/src/lib/approvals.ts`) and `isFinanceRole` (`apps/web/src/lib/rbac.ts`) are the only two `SOURCE ONLY` rows in the permission matrix. They are corroborated independently by `docs/architecture/simon-concept-collisions.md`, which found them with a different scan for SIMON-000-005, and the guard asserts both by name.
+    - **The pilot integrates with three systems; this repository with ten.** `Amazon S3`, `NextAuth` and `Prisma` are the pilot's only detected outbound integrations — re-checkable from its own manifest, which declares `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner` and `next-auth` and nothing else of the kind. SES, SQS, Cognito, Secrets Manager, Stripe, Google and Azure AD are all `TARGET ONLY`. An absorption plan that assumes the pilot already mails through SES is wrong.
+    - **A scanner gap this found and fixed.** Both trees mount NextAuth's catch-all as `export const { GET, POST } = handlers`. The first version of `methodsOf` could not read that form, so `/api/auth/[...nextauth]` — the endpoint every session in the platform depends on — read `NONE-EXPORTED`. It now reads `GET` and `POST`, and the guard reds if any auth endpoint reads `NONE-EXPORTED` again.
+  - Machine portability, proved rather than asserted: with `GIT_OBJECT_DIRECTORY` pointed at an empty directory — a faithful simulation of the depth-1 CI checkout that cannot reach either pinned commit — the spec is still `# tests 13 / # pass 13 / # fail 0`, printing `0 of 2 schemas re-read from git in this environment` as a diagnostic while every snapshot-internal check still runs. Every git-backed case carries checks that need no git, so a skipped re-derivation never leaves a case asserting nothing.
+  - Honest limits, stated in the document: every scan is TEXTUAL, so a route mounted at runtime, a handler re-exported through a barrel, or a permission reached through a variable is invisible. `BOTH — same implementation` is a claim about a row's BACKING FILES and not about behaviour — two byte-identical modules can behave differently if what they import differs, and the capability disposition is where that is compared. The permission axis keys on the exported NAME, so a permission decided inline inside a handler with no exported symbol is a finding of `simon-hardcoded-assumptions.md` instead. `workflow cron` is **0** on both sides and that zero is printed as a search that ran, not omitted.
+  - Not added to the root `generate` script: neither `simon-convergence-inventory.mjs` nor `simon-data-dictionary.mjs` is in it either, and `package.json` is a shared file eleven agents were editing this hour. `--check` gives it the same staleness guard its siblings have.
 
 ## SIMON-010-008 — the check is shipped and fires; two core packages still import the tenant registry
 

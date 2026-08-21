@@ -1,6 +1,7 @@
 import type { ChangeClass, ChangeOperation, TenantState } from "@tenure/provisioning"
 
 import { dependantsOf, type GraphModule } from "../revisions"
+import type { TenantUsers } from "./tenant-users"
 import type { Reading } from "../../app/tenants/[slug]/summary"
 
 /**
@@ -41,12 +42,16 @@ import type { Reading } from "../../app/tenants/[slug]/summary"
  * enumerate the estate" is not. The same rule makes `tenants` and
  * `downstreamReleases` fail with the cell reading they come from.
  *
- * ## The one axis nothing here can count
+ * ## The axis this file used to refuse to count
  *
- * `users`. This control plane holds no user table — deliberately, and
- * `tests/security/no-personal-data.test.mjs` is what keeps it that way — so a
- * user count would have to come from the tenant's own cell. It is reported as
- * unreadable with the read that would answer it, never as `0`.
+ * `users` was a `push(unreadable(...))` with no input behind it and no field on
+ * `BlastInput` a caller could have filled — a constant return for a named axis,
+ * justified on the grounds that "this control plane holds no user table". It
+ * holds no user ROWS, which is a different statement: `lib/aws/cognito.ts`
+ * already reads `EstimatedNumberOfUsers` for every pool and already resolves a
+ * pool to a tenant from its tags. `../change/tenant-users` does that
+ * derivation, and this file now takes its `Reading` like every other axis. A
+ * count is not a person, so nothing about `no-personal-data` changes.
  *
  * Nothing here reads a clock, a network or an environment variable. Every
  * input is passed in, so the report a test renders is the report the page
@@ -141,6 +146,12 @@ export interface BlastInput {
   chains: readonly BlastChain[]
   /** The cell this tenant is placed on, `null` for a tenant with no placement yet. */
   cell: Reading<BlastCell | null>
+  /**
+   * People in the identity stores attributed to this tenant, from
+   * `../change/tenant-users`. Unreadable rather than zero whenever any of a
+   * tenant's pools did not answer — see that module.
+   */
+  users: Reading<TenantUsers>
   /** Seats the tenant's plan entitles. `null` means the plan says unlimited. */
   seats: Reading<number | null>
   /** Estate resources attributed to this tenant. */
@@ -159,12 +170,6 @@ const SERVING_STATES: ReadonlySet<TenantState> = new Set<TenantState>([
 ])
 
 const known = (count: BlastCount): Reading<BlastCount> => ({ known: true, value: count })
-
-const unreadable = (because: string, fix: string): Reading<BlastCount> => ({
-  known: false,
-  because,
-  fix,
-})
 
 /**
  * Carry a failed reading forward onto an axis derived from it.
@@ -231,13 +236,30 @@ export function blastRadius(input: BlastInput): BlastRadius {
   }
 
   // ── users ────────────────────────────────────────────────────────────────
-  push(
-    "users",
-    unreadable(
-      "this control plane holds no user table — user records live in the tenant's own cell database, which the console does not read",
-      "Add a per-tenant user-count read to the cell's operations API and pass it in; do not copy user rows into the control plane.",
-    ),
-  )
+  //
+  // The reading is `tenantUsers`'s, carried through unchanged — its refusals
+  // already name the pool that did not answer and the read that would fix it,
+  // and restating them here would be a second vocabulary for one fact.
+  if (!input.users.known) {
+    push("users", input.users)
+  } else {
+    push(
+      "users",
+      known({
+        count: input.users.value.count,
+        unit:
+          input.users.value.stores.length === 1
+            ? `people in the identity store attributed to this tenant`
+            : `people across the ${input.users.value.stores.length} identity stores attributed to this tenant`,
+        // The POOLS, not the people. This control plane holds no user record
+        // and this axis does not start it holding one.
+        items: [...input.users.value.stores],
+        itemsWithheld:
+          `the identity stores are named and the people in them are not — this console reads ` +
+          `EstimatedNumberOfUsers, which is a total, and holds no user record of any kind`,
+      }),
+    )
+  }
 
   // ── seats ────────────────────────────────────────────────────────────────
   if (!input.seats.known) {

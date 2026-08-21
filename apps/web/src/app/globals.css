@@ -336,7 +336,11 @@
        and ease-entry / ease-exit. */
     --motion-fast: 120ms;    /* hover feedback, dismissals — must not be noticed */
     --motion-base: 180ms;    /* the default: panels, drawers, frame reflow */
-    --motion-slow: 240ms;    /* a full-height surface travelling across the screen */
+    /* GE-143-038 — 220ms, not the 240 it shipped as. The requirement governs
+       standard motion at 120-220ms; 240 sat outside it and the only assertion
+       on it was "<= 400", a bound chosen to exclude a hang rather than to
+       implement a contract. src/lib/a11y/motion-contract.ts holds the band. */
+    --motion-slow: 220ms;    /* a full-height surface travelling across the screen */
     --ease-entry: cubic-bezier(0.16, 1, 0.3, 1);  /* decelerating — things arriving */
     --ease-exit: cubic-bezier(0.4, 0, 1, 1);      /* accelerating — things leaving */
 
@@ -369,11 +373,20 @@
 
   /* Compact: the same interface for someone reconciling four hundred rows.
      Only the density contract moves — type, colour and radius are unchanged,
-     because shrinking those is a different (and mostly bad) idea. */
+     because shrinking those is a different (and mostly bad) idea.
+
+     GE-143-020 — every value here is a multiple of 4px, like every `--space-*`
+     it will sit beside. It shipped as 34/38, which is 2px off the grid, so a
+     compact control could not align with a gutter at any zoom; nothing caught
+     it because the only property under test was "smaller than comfortable".
+     `src/lib/a11y/density-contract.ts` now audits the grid, the 24px WCAG 2.2
+     SC 2.5.8 minimum target, and the rule that a density block may declare the
+     size tokens and NOTHING else — type, colour, focus, labels, error content
+     and the tenant banner read identically at both densities. */
   :root[data-density="compact"] {
     --control-h-sm: 28px;
-    --control-h: 34px;
-    --control-h-lg: 38px;
+    --control-h: 36px;
+    --control-h-lg: 40px;
     --row-h: 28px;
     --density-gap: var(--space-3);
   }
@@ -629,6 +642,61 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+
+  /* ─── GE-143-015 — reduced transparency ─────────────────────────────────────
+     A reader who has asked their platform to reduce transparency has asked for
+     the effect, not for the surface. So the blur behind a modal goes; the
+     scrim keeps its `--bg-overlay` alpha, because an opaque scrim would remove
+     the reader's context entirely rather than reduce an effect, and that is a
+     bigger change than the preference asked for. `TRANSLUCENCY` in
+     src/lib/a11y/depth-contract.ts is where that reasoning is recorded and
+     where an unregistered blur becomes a test failure. */
+  @media (prefers-reduced-transparency: reduce) {
+    *,
+    *::before,
+    *::after {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+  }
+
+  /* ─── GE-143-013 — forced colors / Windows High Contrast ────────────────────
+     The platform substitutes its own palette for every colour we declare. What
+     it CANNOT substitute is a shadow, a blur or a translucent overlay: those
+     survive as smears over a palette they were never designed against, and the
+     usual result is a dialog whose edge disappears entirely.
+
+     So this block does not fight the platform for colour. It removes the
+     effects the platform cannot repaint, and re-states the focus ring in a
+     system colour keyword so the one indicator a keyboard reader depends on is
+     drawn with a colour the platform guarantees is visible.
+
+     `data-forced-colors="active"` is stamped on <html> by `applyTheme` in
+     src/lib/a11y/theme-resolution.ts, so script and stylesheet agree on when
+     this mode is in force and the state is legible in a DOM snapshot. */
+  @media (forced-colors: active) {
+    *,
+    *::before,
+    *::after {
+      box-shadow: none !important;
+      text-shadow: none !important;
+      backdrop-filter: none !important;
+    }
+    :focus-visible {
+      outline: 3px solid Highlight !important;
+      outline-offset: 2px !important;
+    }
+    .overlay-backdrop {
+      background: Canvas !important;
+    }
+  }
+
+  /* The attribute the resolver stamps. It carries no colour of its own — the
+     media query above does the work — and exists so a surface can opt out of a
+     purely decorative flourish without querying media state in JavaScript. */
+  :root[data-forced-colors="active"] .decorative-only {
+    display: none;
   }
 }
 

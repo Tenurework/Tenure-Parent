@@ -15,8 +15,8 @@ cited a served-routes check that compared two hand-written lists.
 
 ## 1. What exists, and what does not
 
-Five of the twelve contexts have code. Seven have none. That is the honest
-reading and it is not a gap list — four of the seven are contexts Tenure has
+Seven of the twelve contexts have code. Five have none. That is the honest
+reading and it is not a gap list — four of the five are contexts Tenure has
 decided not to build (Bible §2: Tenure is not an issuer, not a bank, not a
 custodian of funds, not the KYC decision owner), and their registry leaves are
 `UNSUPPORTED` rather than `PLANNED`.
@@ -30,18 +30,18 @@ inbox, not a payment system.
 | --- | --- | --- | --- |
 | 1 | Payments Configuration Plane | partial | `packages/payments/src/capability-registry.ts`, `packages/payments/src/eligibility.ts`, `packages/payments/src/prohibited-claims.ts`, `apps/web/src/app/(app)/admin/payments/page.tsx` |
 | 2 | Merchant Account Service | absent | — |
-| 3 | Payment Orchestration Service | absent | — |
+| 3 | Payment Orchestration Service | partial | `packages/payments/src/payment-order-state.ts` |
 | 4 | Funds Flow Service | partial | `packages/payments/src/funds-flow.ts`, `packages/payments/src/charge-model.ts`, `packages/payments/src/liability.ts`, `packages/payments/src/responsibility.ts`, `apps/web/src/app/(app)/admin/payments/actions.ts` |
-| 5 | Payout Service | absent | — |
+| 5 | Payout Service | partial | `packages/payments/src/payout-commands.ts` |
 | 6 | Disbursement Service | absent | — |
 | 7 | Financial Account Service | absent | — |
 | 8 | Cards Service | absent | — |
 | 9 | Risk and Disputes Service | absent | — |
 | 10 | Payments Ledger Adapter | partial | `packages/payments/src/posting.ts`, `packages/payments/src/balance-transactions.ts`, `apps/web/src/lib/finance.ts` |
 | 11 | Provider Gateway | partial | `packages/payments/src/gateway.ts`, `packages/payments/src/api-version.ts`, `packages/payments/src/webhook.ts`, `packages/payments/src/external-reference.ts`, `apps/web/src/app/api/payments/provider-events/route.ts` |
-| 12 | Payments Operations Center | partial | `packages/payments/src/refusal.ts`, `packages/payments/src/limits.ts`, `packages/payments/src/financial-identifiers.ts`, `packages/payments/src/high-risk-actions.ts` |
+| 12 | Payments Operations Center | partial | `packages/payments/src/refusal.ts`, `packages/payments/src/movement-commands.ts`, `packages/payments/src/limits.ts`, `packages/payments/src/financial-identifiers.ts`, `packages/payments/src/high-risk-actions.ts` |
 
-What each of the five that exist actually does, as against what Bible §4 asks of
+What each of the seven that exist actually does, as against what Bible §4 asks of
 it:
 
 * **1. Payments Configuration Plane.** Has the capability registry, the
@@ -49,10 +49,24 @@ it:
   that records a funds-flow decision. Does **not** have merchant/legal-entity
   mapping or provider connection — those belong to context 2, which does not
   exist.
+* **3. Payment Orchestration Service.** Has the canonical payment order and
+  attempt state machines (PAY-060-001) and the reader that turns a provider
+  event into an OBSERVATION rather than a transition. Nothing can take a
+  payment, so there is no order to run through the machine yet: what exists is
+  the vocabulary an order would be described in, the table saying which moves
+  are legal, and the rule that a client redirect, a synchronous API response, an
+  email and elapsed time are never final settlement. It orchestrates nothing.
 * **4. Funds Flow Service.** Decides a charge model and a funds flow from the
   responsibility matrix and refuses one that shifts liability to Tenure without
   a pinned approval. Decides only: there are no charges, transfers, splits or
   reversals to route, because nothing can execute.
+* **5. Payout Service.** Has the five outbound commands Bible §11 refuses to
+  let anybody collapse into one verb — settlement payout, balance transfer,
+  outbound payment, refund, disbursement — each with its own state machine, its
+  own counterparty and its own answer to whether a bank can hand the money back
+  (PAY-090-001). No payout can be requested, approved or released: executing any
+  of them is refused outright by `packages/payments/src/refusal.ts`. This is the
+  taxonomy, not the service.
 * **10. Payments Ledger Adapter.** Posting templates with balanced-entry
   validation, and provider balance-transaction ingest that can tell a redelivery
   from a correction. The universal-journal posting itself is `@tenure/finops`,
@@ -71,13 +85,11 @@ it:
   AUDIT evidence package for an action — not the dispute evidence package
   context 9 would own, which still does not exist.
 
-The seven absent contexts, and why each is absent rather than pending:
+The five absent contexts, and why each is absent rather than pending:
 
 | # | Context | Why there is no code |
 | --- | --- | --- |
 | 2 | Merchant Account Service | No connected-account, representative or requirements model exists. `ConnectedAccountConfiguration` in `packages/payments/src/charge-model.ts` is an INPUT to a decision, supplied by the caller — not a stored account. |
-| 3 | Payment Orchestration Service | Nothing can take a payment; there is no intent, attempt or capture to orchestrate. |
-| 5 | Payout Service | Payouts leave the platform, which `packages/payments/src/refusal.ts` refuses outright. |
 | 6 | Disbursement Service | Same refusal, for vendor and contractor instructions. |
 | 7 | Financial Account Service | Bible §2: Tenure is not a bank or custodian. `financial-account.embedded` is `UNSUPPORTED`. |
 | 8 | Cards Service | Bible §2: Tenure is not an issuer. `cards.physical-and-virtual` is `UNSUPPORTED`. |
@@ -110,6 +122,9 @@ what "publish ownership and dependency diagrams" is asked to prevent.
 | `high-risk-actions` | Payments Operations Center | — |
 | `liability` | Funds Flow Service | `charge-model` |
 | `limits` | Payments Operations Center | — |
+| `movement-commands` | Payments Operations Center | `payout-commands`, `refusal` |
+| `payment-order-state` | Payment Orchestration Service | — |
+| `payout-commands` | Payout Service | — |
 | `posting` | Payments Ledger Adapter | — |
 | `prohibited-claims` | Payments Configuration Plane | — |
 | `refusal` | Payments Operations Center | — |
@@ -146,9 +161,10 @@ graph TD
   C1 --> C11
   C12 --> C1
   C12 --> C11
+  C12 --> C5
 ```
 
-Eight edges, and the shape they make is worth stating plainly:
+Nine edges, and the shape they make is worth stating plainly:
 
 * **Almost everything points at 1.** The Configuration Plane holds the
   capability registry, and the Provider Gateway, the Funds Flow Service and the
@@ -176,9 +192,13 @@ Eight edges, and the shape they make is worth stating plainly:
   arrow out of the watch into anything it could change, which is the property
   the requirement is actually about: a watcher that could write would adopt a
   provider version at 3am with no approver in the loop.
-* **The seven contexts with no code have no edges.** They are drawn because
+* **12 → 5** is the movement classifier asking the payout taxonomy which of
+  Bible §11's five verbs an external movement is. The arrow points that way and
+  not the other: the taxonomy does not know what a request is, and the
+  classifier does not define what a payout can do.
+* **The five contexts with no code have no edges.** They are drawn because
   Bible §4 names them and a diagram that omitted them would read as a system
-  with five parts.
+  with fewer parts than it has.
 
 ## 4. What this document cannot tell you
 

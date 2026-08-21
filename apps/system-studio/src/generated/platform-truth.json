@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "d4e2d49",
+  "commit": "faea2de",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 267,
-    "done": 132,
+    "total": 270,
+    "done": 135,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -1640,6 +1640,13 @@
             "isGate": false
           },
           {
+            "id": "GE-092-004",
+            "done": true,
+            "title": "\"Implement reranking, deduplication, diversity, freshness, contradiction detection, citation completeness, and context budgeting.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
             "id": "GE-010-007",
             "done": true,
             "title": "Partition abstraction: something now asks whether a service exists in the partition this process is running in.",
@@ -1650,6 +1657,13 @@
             "id": "GE-102-009",
             "done": false,
             "title": "Signed deployment manifest with the named digests",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-102-001",
+            "done": true,
+            "title": "\"Implement `DRAFT → VALIDATING → PLANNED → AWAITING_APPROVAL → PROVISIONING → CONFIGURING → MIGRATING → VERIFYING → READY → ACTIVATING → ACTIVE` plus explicit `IDLE`, `SUSPENDING`, `SUSPENDED_LOGICAL`, `HIBERNATING`, `HIBERNATED_ZERO_RUNTIME`, `REACTIVATING`, `EXPORTING`, `OFFBOARDING`, `LEGAL_HOLD`, `PURGE_PENDING`, `PURGING`, `PURGED_ZERO_INCREMENTAL_COST`, and failure states. Do not reduce lifecycle to a misleading active boolean.\"",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           },
@@ -1864,6 +1878,13 @@
             "isGate": false
           },
           {
+            "id": "GE-103-019",
+            "done": true,
+            "title": "\"Make clear that a purged tenant has no recoverable content; it can only be onboarded anew from independently retained configuration/customer import.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
             "id": "GE-143-001",
             "done": false,
             "title": "\"Inventory every current UI stack, component library, CSS strategy, font, icon set, table/grid, chart library, editor, calendar, dialog, theme, breakpoint, and copied component; record duplication, accessibility debt, visual drift, and migration risk.\"",
@@ -1924,7 +1945,7 @@
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 351,
+    "decided": 376,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -2134,7 +2155,7 @@
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "EXT · EXT-030 — Staffing and universal journal foundation",
@@ -2197,14 +2218,14 @@
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 0
+        "done": 4
       },
       {
         "phase": "EXT · EXT-120 — Legacy retirement",
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "EXT · EXT-130 — Implementation workbench and live UX",
@@ -2568,7 +2589,7 @@
         "source": "GE",
         "items": 8,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-093: Relay experiences",
@@ -2617,14 +2638,14 @@
         "source": "GE",
         "items": 11,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-103: Tenant fleet, suspension, hibernation, purge, migration, export, and offboarding",
         "source": "GE",
         "items": 24,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "GE · GE-104: Provisioning proof",
@@ -3464,7 +3485,7 @@
         "source": "IER",
         "items": 12,
         "gates": 0,
-        "done": 6
+        "done": 8
       },
       {
         "phase": "IER · IER-080 — Access reconciliation and continuity",
@@ -3499,7 +3520,7 @@
         "source": "IER",
         "items": 8,
         "gates": 0,
-        "done": 0
+        "done": 4
       },
       {
         "phase": "IER · IER-130 — System Studio and tenant experience",
@@ -3793,7 +3814,7 @@
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "PAY · 9. Funds-flow models and multi-party splitting",
@@ -3807,14 +3828,14 @@
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "PAY · 11. Vendor, contractor, beneficiary, and marketplace payouts",
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "PAY · 12. Embedded financial accounts and money management",
@@ -3877,7 +3898,7 @@
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "PAY · 21. Globalization, tax, reporting, and records",
@@ -3982,7 +4003,7 @@
         "source": "SIMON",
         "items": 7,
         "gates": 0,
-        "done": 4
+        "done": 7
       },
       {
         "phase": "SIMON · 4.2 Deployed and AWS inventory",
@@ -3996,7 +4017,7 @@
         "source": "SIMON",
         "items": 4,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "SIMON · 5. Phase 1 — Target convergence architecture and repository boundaries",
@@ -4442,7 +4463,7 @@
     },
     {
       "name": "application unit",
-      "files": 126,
+      "files": 146,
       "what": "apps/web"
     },
     {
@@ -4452,7 +4473,7 @@
     },
     {
       "name": "end to end",
-      "files": 88,
+      "files": 91,
       "what": "real browser"
     }
   ]

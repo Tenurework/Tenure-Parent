@@ -21,6 +21,7 @@
 import fs from "node:fs"
 import path from "node:path"
 
+import { THEME_BOOT_SCRIPT } from "@/lib/a11y/theme-resolution"
 import tailwindConfig from "../../tailwind.config"
 
 const APP_ROOT = path.resolve(__dirname, "../..")
@@ -223,10 +224,17 @@ describe("density contract", () => {
     // The tokens are inert until something writes the attribute. Two callers do,
     // and both have to agree on the key and on the narrowing — a script that
     // wrote `data-density="Compact"` would select nothing and fail silently.
+    // GE-143-013 moved the pre-hydration string out of layout.tsx and into
+    // `@/lib/a11y/theme-resolution` beside `resolveTheme`, so the theme rule
+    // stopped having three implementations. The density stamp travelled with
+    // it — it shares the one blocking script — so the assertion follows the
+    // string rather than the file it used to be typed into, and layout.tsx is
+    // checked for still injecting it.
     const layout = fs.readFileSync(path.join(APP_ROOT, "src/app/layout.tsx"), "utf8")
-    expect(layout).toContain('localStorage.getItem("tenure-density")')
-    expect(layout).toContain('setAttribute("data-density"')
-    expect(layout).toContain('"compact":"comfortable"')
+    expect(layout).toContain("THEME_BOOT_SCRIPT")
+    expect(THEME_BOOT_SCRIPT).toContain('localStorage.getItem("tenure-density")')
+    expect(THEME_BOOT_SCRIPT).toContain('setAttribute("data-density"')
+    expect(THEME_BOOT_SCRIPT).toContain('"compact":"comfortable"')
 
     const switcher = fs.readFileSync(path.join(APP_ROOT, "src/components/DensitySwitcher.tsx"), "utf8")
     expect(switcher).toContain('"tenure-density"')
