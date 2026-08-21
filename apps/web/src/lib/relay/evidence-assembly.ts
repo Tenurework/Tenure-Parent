@@ -367,12 +367,15 @@ export function detectContradictions(
       }
     }
   }
+  // Code points, not collation - this sequence is read into the model's
+  // UNKNOWNS channel, so a locale that orders it differently sends a different
+  // prompt for the same corpus. See `byCodePoint`.
   return out.sort(
     (x, y) =>
-      x.subject.localeCompare(y.subject) ||
-      x.key.localeCompare(y.key) ||
-      x.left.id.localeCompare(y.left.id) ||
-      x.right.id.localeCompare(y.right.id),
+      byCodePoint(x.subject, y.subject) ||
+      byCodePoint(x.key, y.key) ||
+      byCodePoint(x.left.id, y.left.id) ||
+      byCodePoint(x.right.id, y.right.id),
   )
 }
 
@@ -609,10 +612,38 @@ export function assembleEvidence<T extends EvidenceSource>(
  * relative order to `Array.prototype.sort`'s stability over whatever order the
  * database returned, which makes the selection a property of the query plan.
  */
+/**
+ * Order two strings by CODE POINT, never by collation.
+ *
+ * `String.prototype.localeCompare` answers by the runtime's locale and the ICU
+ * data the build carries: it weighs `_`, `-` and case differently from their
+ * code points, and two machines can disagree. Everywhere in this module an
+ * order decides WHAT THE MODEL IS TOLD - which of two twins survives dedup, and
+ * the sequence contradictions are stated in - so an order that varies by
+ * machine makes the same corpus produce a different prompt on a different
+ * runner. That is not a cosmetic difference and it is not reproducible.
+ *
+ * Use this for any order a test, a cache key or a prompt depends on. Use
+ * `localeCompare` only where a HUMAN reads the result and expects their own
+ * language's ordering.
+ */
+function byCodePoint(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
 function compareCandidates(a: EvidenceSource, b: EvidenceSource): number {
   if (a.score !== b.score) return b.score - a.score
   const at = a.asOf instanceof Date ? a.asOf.getTime() : 0
   const bt = b.asOf instanceof Date ? b.asOf.getTime() : 0
   if (at !== bt) return bt - at
-  return a.id.localeCompare(b.id)
+  // Code points, NOT localeCompare. This is the tie-break that decides which of
+  // two twins survives deduplication, and `localeCompare` answers by the
+  // runtime's collation: it weighs `_` and `-` differently from their code
+  // points, and differs with the ICU data a build happens to carry. The same
+  // corpus therefore deduplicated to a DIFFERENT surviving record on a
+  // different machine — green on one runner and red on the next, with no code
+  // change between them. A total order that is not the same order everywhere is
+  // not a total order; the comment above promises "which twin survives is a
+  // decision", and this is what makes that true rather than aspirational.
+  return byCodePoint(a.id, b.id)
 }
