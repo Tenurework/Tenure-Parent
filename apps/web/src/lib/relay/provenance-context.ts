@@ -320,7 +320,12 @@ const VERDICT_SENTENCE: Readonly<Record<EvidenceVerdict, string>> = {
 function unknownsContent(unknowns: UnknownsNotice): string {
   const lines = [`evidence: ${unknowns.verdict}`, VERDICT_SENTENCE[unknowns.verdict]]
   const inaccessible = safeCount(unknowns.inaccessibleCount)
-  if (inaccessible > 99)
+  // ANY withheld row is the thing this channel exists to report: a person who
+  // may not read a matching record must be told the record exists, and a model
+  // told nothing answers as though there were none. The threshold is therefore
+  // one, not a round number — a single withheld row is exactly the case where
+  // silence reads as "no such record".
+  if (inaccessible > 0)
     lines.push(
       `${inaccessible} matching record(s) were withheld from this person and are NOT among the numbered sources. Their titles and contents are not in this prompt and you must not guess at them.`,
     )

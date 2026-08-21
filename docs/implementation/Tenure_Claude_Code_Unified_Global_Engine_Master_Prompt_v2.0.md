@@ -588,7 +588,7 @@ Use this evidence shape:
 - [ ] GE-092-001 — Implement retrieval plan combining canonical direct lookup, relational queries, lexical search, vector/multimodal search, organization/resource graph traversal, and temporal/version selection.
 - [ ] GE-092-002 — Construct allowed-resource filters from current server-side authorization and tenant resource handles before retrieval.
 - [ ] GE-092-003 — Reauthorize every candidate and source version after retrieval; vector similarity and metadata never grant access.
-- [ ] GE-092-004 — Implement reranking, deduplication, diversity, freshness, contradiction detection, citation completeness, and context budgeting.
+- [x] GE-092-004 — Implement reranking, deduplication, diversity, freshness, contradiction detection, citation completeness, and context budgeting.
 - [ ] GE-092-005 — Build provenance-rich context that separates system policy, user request, retrieved untrusted data, tools, temporal facts, and explicit unknowns.
 - [ ] GE-092-006 — Return citations resolvable to authorized exact records/pages/versions/timestamps; never cite a source the actor cannot open.
 - [ ] GE-092-007 — Implement “insufficient evidence,” conflicting evidence, stale data, inaccessible source, and correction/report paths.
@@ -662,7 +662,7 @@ Use this evidence shape:
 
 ### GE-102: Idempotent provisioning state machine
 
-- [ ] GE-102-001 — Implement `DRAFT → VALIDATING → PLANNED → AWAITING_APPROVAL → PROVISIONING → CONFIGURING → MIGRATING → VERIFYING → READY → ACTIVATING → ACTIVE` plus explicit `IDLE`, `SUSPENDING`, `SUSPENDED_LOGICAL`, `HIBERNATING`, `HIBERNATED_ZERO_RUNTIME`, `REACTIVATING`, `EXPORTING`, `OFFBOARDING`, `LEGAL_HOLD`, `PURGE_PENDING`, `PURGING`, `PURGED_ZERO_INCREMENTAL_COST`, and failure states. Do not reduce lifecycle to a misleading active boolean.
+- [x] GE-102-001 — Implement `DRAFT → VALIDATING → PLANNED → AWAITING_APPROVAL → PROVISIONING → CONFIGURING → MIGRATING → VERIFYING → READY → ACTIVATING → ACTIVE` plus explicit `IDLE`, `SUSPENDING`, `SUSPENDED_LOGICAL`, `HIBERNATING`, `HIBERNATED_ZERO_RUNTIME`, `REACTIVATING`, `EXPORTING`, `OFFBOARDING`, `LEGAL_HOLD`, `PURGE_PENDING`, `PURGING`, `PURGED_ZERO_INCREMENTAL_COST`, and failure states. Do not reduce lifecycle to a misleading active boolean.
 - [ ] GE-102-002 — Persist step state, attempt, correlation, actor, input/output digest, timestamps, safe error class, evidence, compensation, and idempotency.
 - [ ] GE-102-003 — Reserve tenant ID/slug/domain/routing/cell/storage safely before provisioning.
 - [ ] GE-102-004 — Vend and baseline Tenure-owned account when selected; never require a user/customer personal AWS account.
@@ -694,7 +694,7 @@ Use this evidence shape:
 - [ ] GE-103-016 — Reconcile tags/application inventory/IaC/account resources after hibernation/purge and create orphan findings with service, resource, account/region, owner, reason, expected cost, and corrective action.
 - [ ] GE-103-017 — Verify Cost and Usage Report/Cost Explorer after billing settles at defined 24/48/72-hour windows. Do not mark purge zero-cost until tenant-attributable recurring usage/resources are zero within configured billing granularity.
 - [ ] GE-103-018 — Implement logically suspended reactivation and hibernated reprovisioning from signed config/release plus retained recovery data; rerun migration, isolation, identity, connector, search/AI reindex, smoke, security, and cost gates.
-- [ ] GE-103-019 — Make clear that a purged tenant has no recoverable content; it can only be onboarded anew from independently retained configuration/customer import.
+- [x] GE-103-019 — Make clear that a purged tenant has no recoverable content; it can only be onboarded anew from independently retained configuration/customer import.
 - [ ] GE-103-020 — Implement tenant/cell/isolation migration state machine with inventory, compatibility, copy/sync, validation, identity/routing cutover, canary, rollback, and decommission.
 - [ ] GE-103-021 — Prevent migration/failover to unauthorized regions or ambiguous identity issuers/callbacks.
 - [ ] GE-103-022 — Implement complete tenant export: canonical records, files/versions, configuration/schema, permitted audit, mappings, data dictionary, checksums, and manifest—no platform secrets or other tenants.

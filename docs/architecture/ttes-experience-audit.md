@@ -18,7 +18,7 @@ It covers the tenant experience only. `apps/system-studio` is the deployer
 experience, audited separately, and TTES-000-001 split the two inventories so a
 claim about one could not be read as a claim about both.
 
-Scope read: **508 files** under `apps/web/src`.
+Scope read: **507 files** under `apps/web/src`.
 
 ## 2. Personas
 

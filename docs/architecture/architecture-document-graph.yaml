@@ -262,8 +262,8 @@ documents:
     family: "pack-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: d4d3b165867428d8a44d0b0d844d9007b493970ba287e0f20fa83f2a24ee6e61
-    bytes: 21101
+    sha256: "92a080993638d0bd8e3863fc68ec9e20050179e15a2bd537efa8ae2a51b382df"
+    bytes: 21200
     aliases: []
     requirement_prefixes:
       - PACK
@@ -475,7 +475,7 @@ documents:
     family: Tenure_Claude_Code_Global_Engine_Execution_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: "7a73db6cdbd17b43ad0ee3d893ed487b17ee700eb66fd8937d2385bea795273c"
+    sha256: c2470ad172639ddc8e098d2953d08d446b5c1ac5a9627ec0bcbaaa3f45b935ef
     bytes: 115086
     aliases: []
     requirement_prefixes:
@@ -490,7 +490,7 @@ documents:
     family: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: "6e739630171d6a8c004def885130fbe414a5065f1bd2fbfe6edb3abb135bb658"
+    sha256: c200e2d5c09aaa7eafc93920fef315aaccbf64d77d99c011fae9a09757fc60f8
     bytes: 162330
     aliases: []
     requirement_prefixes:

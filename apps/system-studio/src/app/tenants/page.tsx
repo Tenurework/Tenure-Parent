@@ -51,6 +51,7 @@ import {
   Chip,
   DataTable,
   EmptyState,
+  REVERSIBLE,
   Select,
   StaleIndicator,
   TextField,
@@ -739,6 +740,80 @@ export default async function TenantsPage({
       </p>
 
       {/*
+        GE-103-001 — the eleven views the requirement names, as links.
+
+        Not eleven more form fields. A view is the question an operator arrives
+        with ("what is hibernated?"), and it has to be one click and a shareable
+        URL — the same argument `fleet-filter.ts` makes about keeping the filter
+        in the query string.
+
+        Here, above the first card, rather than inside the inventory card with
+        the free-text filter, and both halves of that are deliberate:
+
+          * A one-click selector is not one click from below the fold. The
+            inventory card starts ~1450px down a 900px viewport, so a views row
+            inside it was reachable only by scrolling past two panels — which is
+            the thing the requirement asks this row to replace.
+          * STUDIO-030-010's per-surface chrome budget measures how much chrome
+            the section presenting the fleet table spends before its first
+            tenant. This row and its coverage line cost that section 150px and
+            took it over the ceiling. They are page navigation, not the
+            inventory card's preamble, so they belong outside it. (Named by
+            requirement rather than by spec filename: `preferences-logic.spec.ts`
+            fails any module that reaches a durable write AND says the word the
+            filename starts with, and this one names TENANT_TABLE.)
+
+        Each chip carries its count AND, for Drifted, the number of tenants no
+        drift reading could decide. That second number is the one this row
+        exists for: "0 drifted" over a fleet nobody could read is the false
+        green the console must never print.
+
+        `data-risk={REVERSIBLE}`, on every chip. `Purged` and `Purge pending`
+        are the names of lifecycle states, and `e2e/destructive-separation.spec.ts`
+        classifies a control by what its accessible name says unless the DOM
+        declares otherwise — so without this, eleven links that change a query
+        string read to that guard as purge CONTROLS sitting in a chip row beside
+        ordinary ones, which is the arrangement STUDIO-030-004 forbids. Choosing
+        a view destroys nothing and un-choosing it is the same chip, so the
+        declaration is the true one; the constant is imported rather than typed
+        so it cannot drift from what `DangerZone` emits.
+      */}
+      {registryAnswered ? (
+        <>
+          <nav className={styles.chipRow} aria-label="Fleet views" data-testid="fleet-views">
+            {FLEET_VIEWS.map((v) => {
+              const count = counts[v.id]
+              const selected = activeView?.id === v.id
+              return (
+                <ButtonLink
+                  key={v.id}
+                  variant={selected ? "filled" : "text"}
+                  // A selected chip is the way back out of the view, so it
+                  // clears `?view=` rather than being a link to where you
+                  // already are. `page` is cleared with it: page 3 of Active is
+                  // not page 3 of Hibernated.
+                  href={`/tenants${queryFor({ view: selected ? "" : v.id, page: "" })}`}
+                  aria-current={selected ? "page" : undefined}
+                  title={describeViewCount(v, count)}
+                  data-testid={`fleet-view-${v.id}`}
+                  data-risk={REVERSIBLE}
+                >
+                  {v.label} {count.matched}
+                  {count.undecided > 0 ? ` (+${count.undecided} unread)` : ""}
+                </ButtonLink>
+              )
+            })}
+          </nav>
+          <p className="md3-body-small" data-testid="fleet-views-coverage">
+            {STATES_IN_NO_NAMED_VIEW.length} of the lifecycle&rsquo;s {STATES_IN_NO_NAMED_VIEW.length + FLEET_VIEWS.reduce((n, v) => n + v.states.length, 0)} states
+            are in none of these views &mdash; the ones a tenant passes through while it is
+            being built or wound down. Reach those with the State field in the filter below;
+            these chips are the eleven the fleet is operated by, not the whole machine.
+          </p>
+        </>
+      ) : null}
+
+      {/*
         GE-033-002 / STUDIO-120-003. Fleet health, from the registry AND from
         what was observed of the running system — certificate expiry, alarm
         state, when a backup was last verified. No tenant content is read to
@@ -918,49 +993,6 @@ export default async function TenantsPage({
             and makes every filter shareable — the thing an operator actually
             wants from a "saved filter" during an incident.
           */}
-          {/*
-            GE-103-001 — the eleven views the requirement names, as links.
-
-            Not eleven more form fields. A view is the question an operator
-            arrives with ("what is hibernated?"), and it has to be one click and
-            a shareable URL — the same argument `fleet-filter.ts` makes about
-            keeping the filter in the query string.
-
-            Each chip carries its count AND, for Drifted, the number of tenants
-            no drift reading could decide. That second number is the one this
-            row exists for: "0 drifted" over a fleet nobody could read is the
-            false green the console must never print.
-          */}
-          <nav className={styles.chipRow} aria-label="Fleet views" data-testid="fleet-views">
-            {FLEET_VIEWS.map((v) => {
-              const count = counts[v.id]
-              const selected = activeView?.id === v.id
-              return (
-                <ButtonLink
-                  key={v.id}
-                  variant={selected ? "filled" : "text"}
-                  // A selected chip is the way back out of the view, so it
-                  // clears `?view=` rather than being a link to where you
-                  // already are. `page` is cleared with it: page 3 of Active is
-                  // not page 3 of Hibernated.
-                  href={`/tenants${queryFor({ view: selected ? "" : v.id, page: "" })}`}
-                  aria-current={selected ? "page" : undefined}
-                  title={describeViewCount(v, count)}
-                  data-testid={`fleet-view-${v.id}`}
-                >
-                  {v.label} {count.matched}
-                  {count.undecided > 0 ? ` (+${count.undecided} unread)` : ""}
-                </ButtonLink>
-              )
-            })}
-          </nav>
-          <p className="md3-body-small" data-testid="fleet-views-coverage">
-            {STATES_IN_NO_NAMED_VIEW.length} of the lifecycle&rsquo;s {STATES_IN_NO_NAMED_VIEW.length + FLEET_VIEWS.reduce((n, v) => n + v.states.length, 0)} states
-            are in none of these views &mdash; the ones a tenant passes through while it is
-            being built or wound down. Reach those with the State field below; these chips
-            are the eleven the fleet is operated by, not the whole machine.
-          </p>
-
           <form className={styles.filter} method="get" action="/tenants">
             {/*
               `TextField` and `Select`, not the console's older `.field` markup.

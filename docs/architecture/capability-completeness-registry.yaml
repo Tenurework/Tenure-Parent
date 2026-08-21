@@ -30,9 +30,9 @@ by_prefix:
   WRK: 88
 by_status:
   BLOCKED_EXTERNAL: 30
-  FAIL: 1902
+  FAIL: 1889
   NOT_APPLICABLE: 1
-  PASS: 332
+  PASS: 345
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -5902,10 +5902,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-092: Permission-aware RAG"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement reranking, deduplication, diversity, freshness, contradiction detection, citation completeness, and context budgeting."
   - id: "GE-092-005"
     prefix: GE
@@ -6325,10 +6325,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-102: Idempotent provisioning state machine"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement `DRAFT → VALIDATING → PLANNED → AWAITING_APPROVAL → PROVISIONING → CONFIGURING → MIGRATING → VERIFYING → READY → ACTIVATING → ACTIVE` plus explicit `IDLE`, `SUSPENDING`, `SUSPENDED_LOGICAL`, `HIBERNATING`, `HIBERNATED_ZERO_RUNTIME`, `REACTIVATING`, `EXPORTING`, `OFFBOARDING`, `LEGAL_HOLD`, `PURGE_PENDING`, `PURGING`, `PURGED_ZERO_INCREMENTAL_COST`, and failure states. Do not reduce lifecycle to a misleading active boolean."
   - id: "GE-102-002"
     prefix: GE
@@ -6586,10 +6586,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-103: Tenant fleet, suspension, hibernation, purge, migration, export, and offboarding"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: Make clear that a purged tenant has no recoverable content; it can only be onboarded anew from independently retained configuration/customer import.
   - id: "GE-103-020"
     prefix: GE
@@ -11482,7 +11482,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-070 — Eligibility policy engine"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11491,7 +11491,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-070 — Eligibility policy engine"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11914,7 +11914,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-120 — Module and scope eligibility"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11923,7 +11923,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-120 — Module and scope eligibility"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11950,7 +11950,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-120 — Module and scope eligibility"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11959,7 +11959,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-120 — Module and scope eligibility"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -14587,7 +14587,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "8. Inbound payment acceptance"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -14731,7 +14731,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "10. Internal organizational payment pipeline"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -14803,7 +14803,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "11. Vendor, contractor, beneficiary, and marketplace payouts"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -15478,7 +15478,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "20. Relay by Tenure for payments"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"

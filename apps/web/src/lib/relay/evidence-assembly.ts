@@ -204,7 +204,7 @@ export function dedupeKeys(source: EvidenceSource): readonly string[] {
   const external = citationResolves(source)
     ? `ref:${source.citation.ref.provider}:${source.citation.ref.externalId}`
     : null
-  const text = `text:${normalizeText(source.title)} ${normalizeText(source.body)}`
+  const text = `text:${normalizeText(source.title)}\u0000${normalizeText(source.body)}`
   return external ? [external, text] : [text]
 }
 

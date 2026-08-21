@@ -445,7 +445,14 @@ export function convertWithEvidence(input: ConversionInput): FxOutcome {
           ? null
           : { minorUnits: providerFeeMinorUnits, currency: settlementCurrency },
       recognition,
-      fxGainLossMinorUnits: 0,
+      // The computed figure, not a literal. This read `0`, which discarded the
+      // subtraction thirty lines above and — worse — collapsed the two answers
+      // this field exists to keep apart: `null` means there was no recognition
+      // leg to compare against, and `0` means there was one and it moved
+      // nothing. Reporting a real gain of 500 as 0 restates a tenant's books by
+      // the amount of the gain, silently, in the direction of "nothing
+      // happened".
+      fxGainLossMinorUnits,
       rounding: FX_ROUNDING,
       roundingResidualMicroMinorUnits,
       computedAt: at,
