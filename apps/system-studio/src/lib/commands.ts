@@ -36,7 +36,30 @@ export const STATIC_DESTINATIONS: readonly Destination[] = [
     keywords: ["fleet", "customers", "orgs", "institutions"],
   },
   { id: "systems", title: "Systems", href: "/", group: "Section", keywords: ["home", "overview", "configured"] },
-  { id: "platform", title: "Platform", href: "/platform", group: "Section", keywords: ["engine", "ledger", "estate", "aws"] },
+  // The ten operator surfaces the rail reaches. They were absent, so Ctrl-K
+  // offered three destinations for a console with fourteen — and the ONE
+  // `/platform*` entry it did offer was `/platform`, the quarantined build
+  // report, which is the worst possible page to be the only one findable. A
+  // launcher that cannot reach most of the product is a second, worse
+  // navigation, and an operator who misses twice stops opening it.
+  //
+  // Titles are the rail's `label` verbatim, not a synonym. The two navigations
+  // naming the same page differently is how they drift apart; if a label
+  // changes in Nav.tsx, it changes here in the same commit.
+  { id: "estate", title: "Estate", href: "/platform/estate", group: "Section", keywords: ["aws", "account", "inventory", "resources", "topology"] },
+  { id: "network", title: "Network", href: "/platform/network", group: "Section", keywords: ["vpc", "subnet", "security group", "elb", "tls", "edge"] },
+  { id: "compute", title: "Compute", href: "/platform/compute", group: "Section", keywords: ["ecs", "service", "task", "lambda", "runtime", "stopped"] },
+  { id: "messaging", title: "Messaging", href: "/platform/messaging", group: "Section", keywords: ["sqs", "sns", "eventbridge", "ses", "queue", "dlq"] },
+  { id: "identity", title: "Identity", href: "/platform/identity", group: "Section", keywords: ["iam", "cognito", "secrets", "keys", "analyzer"] },
+  { id: "data", title: "Data", href: "/platform/data", group: "Section", keywords: ["dynamodb", "rds", "s3", "cache", "backup", "restore"] },
+  { id: "findings", title: "Findings", href: "/platform/security", group: "Section", keywords: ["security", "severity", "sla", "guardduty"] },
+  { id: "health", title: "Health", href: "/platform/health", group: "Section", keywords: ["alarms", "cloudwatch", "coverage", "logs"] },
+  { id: "cost", title: "Cost", href: "/platform/cost", group: "Section", keywords: ["finops", "budget", "spend", "allocation"] },
+  { id: "audit", title: "Audit", href: "/platform/audit", group: "Section", keywords: ["evidence", "ledger", "chain", "retention", "hold"] },
+  // The rail's other quarantined destination. Both are last on purpose: they
+  // should be findable and should not be what an operator lands on first.
+  { id: "diagnostics", title: "Diagnostics", href: "/platform/diagnostics", group: "Section", keywords: ["quarantine", "register", "unlinked", "panels"] },
+  { id: "platform", title: "Platform", href: "/platform", group: "Section", keywords: ["engine", "ledger", "build report"] },
   // Universal create. Bible §26.3.1 lists it beside command search for a
   // reason: the most common reason to open a launcher is to make something.
   {
