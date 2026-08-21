@@ -53,7 +53,7 @@ as of it.
 | 1 | **The content is a centred column.** `main { inline-size: min(100%, 1280px); margin-inline: auto }`. On a 1920px operator monitor that is 320px of empty page on each side, permanently. `.masthead` and `.tabs` pad themselves to match with `padding-inline: max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)))`, so the whole console is pinned to that column. | `globals.css`, rules `main`, `.masthead`, `.tabs` |
 | 2 | **The top bar holds four things.** A text `Tenure` wordmark, the words "System Studio", the preferences menu, an "Internal" badge. No sign-out, no account, no search, no breadcrumb, no environment or account indicator. | `src/app/layout.tsx:37-42` |
 | 3 | **There is no way to sign out.** `signOut` is exported from `src/lib/auth.ts:49` and has **zero callers** anywhere under `src/`. An operator ends a session by clearing a cookie. | `grep -rn "signOut" apps/system-studio/src` → one hit, the export itself |
-| 4 | **The navigation has one level.** `GROUPS` is 10 groups and 14 entries rendered as a horizontal wrapping strip. A group is a label above a list; there is nothing below an entry. | `src/components/Nav.tsx:87-209`; `grep -c 'href: "'` → 14, `grep -c 'domain: "'` → 10 |
+| 4 | **The navigation has one level.** `GROUPS` is 8 groups and 14 entries rendered as a horizontal wrapping strip. A group is a label above a list; there is nothing below an entry. | `src/components/Nav.tsx:87-209`; `grep -c '^        href: "'` → 14, `grep -c '^    domain: "'` → 8 |
 | 5 | **The command palette is invisible.** `components/CommandPalette.tsx` returns `null` until Ctrl/Cmd-K is pressed (`if (!open) return null`, line 149) and nothing on any screen mentions it. The string "Ctrl" appears once in the whole UI — inside a code comment. | `src/components/CommandPalette.tsx:149`, `:103` |
 | 6 | **The mark is a word in a pill.** The masthead renders `<span className="mark">Tenure</span>` with a 10px square pseudo-element beside it. `components/brand/TenureLogo.tsx` has held the real rosette and a `TenureStudioWordmark` since before this run, and `grep -rn TenureLogo` returned hits in that file only — nothing rendered it. A design lane is landing `components/md3/Logo.tsx` over the same `PETAL` geometry while this is being written; §5 points the shell at it rather than at a third mark. | `grep -rn "TenureLogo"`; `git status --porcelain` |
 | 7 | **18 routes are served, not 17.** `find src/app -name page.tsx` → 18. The 17 in `tests/architecture/authorizing-routes-are-dynamic.test.mjs`'s comment predates `/platform/diagnostics`. | `href-probe`, §11 |
@@ -193,8 +193,10 @@ the build on a group named anything else, on a group out of order, on more or
 fewer than one `tail` group, on the tail not being last, and on the tail being
 named after one of the Bible's domains.
 
-The ten groups and fourteen entries below are **unchanged from what ships
-today**. The rail is a new rendering of the same table, not a new table.
+The eight groups and fourteen entries below are what ships today. Identity and
+Data were top-level groups of their own until the shell was re-nested onto the
+Google Admin console's shape; they are now the fifth and sixth surfaces of
+**AWS**, which is where §12 puts them and where an operator looks for them.
 
 | # | Group (Bible domain) | Entry | Route | The requirement it serves |
 |---|---|---|---|---|
@@ -204,8 +206,8 @@ today**. The rail is a new rendering of the same table, not a new table.
 | 3 | **AWS** | Network | `/platform/network` | §12 "Network and edge". `STUDIO-080-001`, `STUDIO-080-002`. |
 | 3 | **AWS** | Compute | `/platform/compute` | §12 "Compute and orchestration". `STUDIO-080-001`, `STUDIO-080-006`. |
 | 3 | **AWS** | Messaging | `/platform/messaging` | §12 "Compute and orchestration" (SQS/SNS/EventBridge/Scheduler) plus SES deliverability. `STUDIO-080-001`, `STUDIO-080-007`. |
-| 4 | **Identity** | Identity | `/platform/identity` | §12 "Identity and secrets"; §7.2 names **Identity** as a domain of its own. |
-| 5 | **Data** | Data | `/platform/data` | §12 "Data and content"; §7.2 names **Data** as a domain of its own. |
+| 3 | **AWS** | Identity | `/platform/identity` | §12 "Identity and secrets". §7.2 names **Identity** as a domain of its own; it is rendered inside AWS because a group holding one entry is a heading with nothing under it, and eight of ten groups were that. |
+| 3 | **AWS** | Data | `/platform/data` | §12 "Data and content". §7.2 names **Data** as a domain of its own; rendered inside AWS for the same reason. |
 | 6 | **Security** | Findings | `/platform/security` | §15. Aggregated findings with severity, SLA and per-source answered/unknown state (`STUDIO-110-006`). |
 | 7 | **Operations** | Health | `/platform/health` | §12. Alarms with the verdicts CloudWatch does not return (`STUDIO-080-008`). |
 | 8 | **FinOps** | Cost | `/platform/cost` | §16. Cost allocation with honest unallocated spend (`STUDIO-120-008`), display (`-009`), approval thresholds (`-010`). |
@@ -213,7 +215,7 @@ today**. The rail is a new rendering of the same table, not a new table.
 | — | **Diagnostics** (tail) | Diagnostics | `/platform/diagnostics` | **None.** The register of what is behind the line. §8. |
 | — | **Diagnostics** (tail) | Platform | `/platform` | **None.** §8. |
 
-Ten groups, **fourteen** destinations.
+Eight groups, **fourteen** destinations.
 
 Why Network, Compute and Messaging are AWS entries rather than groups: §7.2
 names seventeen domains and none of them is Network, Compute or Messaging. §12
@@ -524,8 +526,8 @@ Enumerated from `apps/system-studio/src/app/**/page.tsx`, not from a list:
 | `/platform/network` | Operator surface | AWS › Network | 5 |
 | `/platform/compute` | Operator surface | AWS › Compute | 4 |
 | `/platform/messaging` | Operator surface | AWS › Messaging | 4 |
-| `/platform/identity` | Operator surface | Identity › Identity | 5 |
-| `/platform/data` | Operator surface | Data › Data | 5 |
+| `/platform/identity` | Operator surface | AWS › Identity | 5 |
+| `/platform/data` | Operator surface | AWS › Data | 5 |
 | `/platform/security` | Operator surface | Security › Findings | 3 |
 | `/platform/health` | Operator surface | Operations › Health | 2 |
 | `/platform/cost` | Operator surface | FinOps › Cost | none, deliberately |
@@ -609,7 +611,7 @@ the same change as the account menu, not after it.
 |---|---|---|
 | The navigation and the routes still agree | `node --test tests/architecture/shell-separation.test.mjs` | 13 pass, 0 fail |
 | 18 routes are served | `find apps/system-studio/src/app -name page.tsx \| wc -l` | 18 |
-| 10 groups, 14 entries | `grep -c 'domain: "' src/components/Nav.tsx`; `grep -c 'href: "'` | 10; 14 |
+| 8 groups, 14 entries | `grep -c '^    domain: "' src/components/Nav.tsx`; `grep -c '^        href: "'` | 8; 14 |
 | 6 register rows | `grep -c 'route: "' src/app/platform/diagnostics/register.ts` | 6 (2 quarantined, 4 unlinked) |
 | `signOut` has no caller | `grep -rn "signOut" apps/system-studio/src` | 1 hit — the export in `lib/auth.ts` |
 | The logo is unused | `grep -rn "TenureLogo" apps/system-studio/src apps/system-studio/e2e` | 3 hits, all inside `TenureLogo.tsx` |

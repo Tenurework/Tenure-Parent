@@ -294,8 +294,8 @@ documents:
     family: "studio-information-architecture"
     superseded_by: null
     supersedes: []
-    sha256: "750da92bcefa5d2058f7eb538e196abf997f4dbbdff6469f044f6dc8ec056f66"
-    bytes: 52626
+    sha256: e9bbf86004e7f9507746a6a495508af6e8eb7fba117560b73e611bcc98f0d7fd
+    bytes: 52975
     aliases: []
     requirement_prefixes:
       - STUDIO

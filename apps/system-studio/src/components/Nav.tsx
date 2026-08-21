@@ -259,21 +259,11 @@ export const GROUPS: readonly Group[] = [
           { label: "Sending", anchor: "sending", hint: "SES identities, send rate and suppression" },
         ],
       },
-    ],
-  },
-  {
-    domain: "Identity",
-    entries: [
       {
         href: "/platform/identity",
         label: "Identity",
         hint: "who can get into this control plane and this account, and what is protecting those doors",
       },
-    ],
-  },
-  {
-    domain: "Data",
-    entries: [
       {
         href: "/platform/data",
         label: "Data",
