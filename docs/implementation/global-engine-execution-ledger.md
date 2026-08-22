@@ -610,15 +610,23 @@ for progress:
 - [x] **GE-020-002** — Prevent controllers, UI, connectors and general modules from importing raw database, provider or AWS clients.
   - Status: PASS
   - Code/config: `tests/architecture/forbidden-clients.test.mjs`
-  - Evidence: no module outside `lib/db.ts` constructs a Prisma client, none
-    outside `lib/s3.ts`, the Studio's `registry.ts` and its estate reader
-    constructs an AWS one, and no provider URL is called outside `lib/ai.ts`.
-    **One real violation existed and was fixed rather than allowlisted** — the
-    document summary page built its own `S3Client` and now reads through
+  - Evidence, stated over the whole repository and with the exemptions counted
+    in rather than left implied: **no module constructs a Prisma client except
+    `lib/db.ts` and the fifteen exempt tests and operational scripts; none
+    constructs an AWS client except `lib/s3.ts`, the Studio's `registry.ts`,
+    its estate reader `lib/aws/client.ts` and the six exempt operator scripts;
+    and no provider URL appears outside `lib/ai.ts` and the one exempt guard
+    that asserts on it.** Every exemption is named in
+    `forbidden-clients.test.mjs` with its reason, and the three counts are
+    pinned, so this sentence cannot drift from the rule without a test going
+    red. **One real violation existed and was fixed rather than allowlisted** —
+    the document summary page built its own `S3Client` and now reads through
     `getDocumentBytes`.
   - **The scan named four roots and has been widened to the repository.** The
-    sentence above was not true when it was written: `apps`, `packages`,
-    `modules` and `blueprints` were read and `tools/` was not, and six files
+    absolute form this evidence line used to take — "none outside `lib/s3.ts`
+    and the Studio's `registry.ts`" — was not true when it was written:
+    `apps`, `packages`, `modules` and `blueprints` were read and `tools/` was
+    not, and six files
     there hold an AWS client — five DynamoDB, one IAM. Nothing was smuggled;
     each is an operator script that runs with no session and each is defensible.
     What was wrong is that the rule had published where its attention stopped,
