@@ -24,6 +24,24 @@
  * here is that the allowlist entries are *exemptions with stated reasons*
  * distinct from the *owners*, so "who is allowed to hold this client" and "who
  * has been let off" cannot be confused for each other.
+ *
+ * ## What the survey covers, and why it is not a list
+ *
+ * The whole repository. It used to be four named roots, and the difference was
+ * six AWS clients: `tools/` was outside the scan, and the header of
+ * `tools/dev/tamper-audit-row.mjs` said so in as many words, as the reason for
+ * putting a DynamoDB client there. Nobody smuggled anything — the entry was
+ * honest and the script is defensible — but the rule had published its own
+ * boundary, and a boundary a rule publishes is one people build against.
+ *
+ * The estate is not going to stop growing, and neither is the set of places a
+ * client can be constructed. So nothing here names a directory it expects a
+ * violation in: `sourceFiles()` takes no pathspec, `the scan still reaches the
+ * whole tree` reds if anybody gives it one, and `every AWS service the
+ * repository depends on is a name this rule knows` reads the constructor names
+ * back off the package manifests so the WHAT axis cannot fall behind either.
+ * The only lists are of files explicitly let off, each with its reason and its
+ * count pinned.
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -32,11 +50,25 @@ import { execFileSync } from 'node:child_process'
 
 /* ------------------------------------------------------------------ scope -- */
 
-const SCAN_ROOTS = ['apps', 'packages', 'modules', 'blueprints']
-const SOURCE = /\.(ts|tsx|mjs|cjs|jsx?)$/
+const SOURCE = /\.(ts|tsx|mts|cts|mjs|cjs|jsx?)$/
 
 /**
- * Every source file in the workspace, tracked or merely present.
+ * Every source file in the repository, tracked or merely present.
+ *
+ * NO PATHSPEC, deliberately. This scan used to name four roots — `apps`,
+ * `packages`, `modules`, `blueprints` — and a rule that lists where it looks
+ * only ever finds what somebody already suspected. That was not a theoretical
+ * hole. The header of `tools/dev/tamper-audit-row.mjs` said in as many words
+ * that a tamper helper "inside `apps/` would also trip `forbidden-clients` …
+ * `tools/` is outside that scan": an author read the rule, saw where its
+ * attention stopped, and put a DynamoDB client on the far side of the line. Six
+ * files had done the same, two of them reaching services — IAM, and DynamoDB
+ * table DDL — that no adapter in this estate owns at all.
+ *
+ * So the universe is the repository. A violator in a directory nobody has
+ * thought of yet — `services/`, `workers/`, a root added next month — fails
+ * this suite on the day it lands, and `the scan still reaches the whole tree`
+ * below fails if anybody narrows it again.
  *
  * `--others --exclude-standard` matters: a plain `git ls-files` sees only what
  * has been `git add`ed, so a new page with a raw client would pass locally right
@@ -44,11 +76,9 @@ const SOURCE = /\.(ts|tsx|mjs|cjs|jsx?)$/
  * learned the same lesson from the other direction.
  */
 function sourceFiles() {
-  const files = execFileSync(
-    'git',
-    ['ls-files', '--cached', '--others', '--exclude-standard', ...SCAN_ROOTS],
-    { encoding: 'utf8' }
-  )
+  const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+    encoding: 'utf8',
+  })
     .split('\n')
     .filter(Boolean)
     .filter((f) => SOURCE.test(f))
@@ -57,7 +87,7 @@ function sourceFiles() {
   // worthless if the file list breaks, so it fails instead of passing emptily.
   assert.ok(
     files.length > 100,
-    `only ${files.length} source files found under ${SCAN_ROOTS.join(', ')} — the scan is broken, not the code`
+    `only ${files.length} source files found in the repository — the scan is broken, not the code`
   )
   return files
 }
@@ -284,9 +314,63 @@ const DATABASE_EXEMPT = new Map([
   ],
 ])
 
-/** No file is exempt from the AWS or provider rules. Both lists exist so growth is visible. */
-const AWS_EXEMPT = new Map()
-const PROVIDER_EXEMPT = new Map()
+/**
+ * Operator scripts that hold an AWS client and may.
+ *
+ * This list was empty while the scan named four roots, and reading it as "no
+ * file is exempt" was wrong — six files were not exempt, they were unexamined.
+ * They are examined now, and each is here on its merits rather than on its
+ * address. What they have in common is that none of them is reachable from a
+ * request: every one is a `node tools/…` invocation an operator types, running
+ * under that operator's own credentials with no session, no tenant and nothing
+ * for an adapter to scope. Both Studio adapters begin `import "server-only"`,
+ * which throws outside a React Server Component, so routing these through the
+ * adapter is not a smaller change than this one — it is not a possible one.
+ *
+ * The exemption is per-file and counted below. A SEVENTH script in `tools/`
+ * fails this suite, which is the difference that matters: the hazard was never
+ * that these five DynamoDB clients exist, it was that `tools/` was a place a
+ * client could be put without anybody being told.
+ */
+const AWS_EXEMPT = new Map([
+  [
+    'tools/create-registry-table.mjs',
+    'creates the registry TABLE, which is DDL — `lib/registry.ts` reads and writes items and has no CreateTable path, so there is no adapter call this could become. It refuses to run without AWS_ENDPOINT_URL_DYNAMODB, so it cannot be aimed at an account by ambient credentials, and its own header explains why it uses the SDK rather than the `aws` CLI: shelling out to `aws` is what `production-workflows-disarmed` looks for',
+  ],
+  [
+    'tools/dev/reset-registry-table.mjs',
+    'drops and recreates that same table so the Studio e2e can run twice locally — DeleteTable and CreateTable, again DDL the adapter does not expose. It refuses to run without an explicit local endpoint, which is the guard that matters for a script whose whole purpose is deleting a table',
+  ],
+  [
+    'tools/dev/seed-studio-fleet.mjs',
+    'writes the three fleet shapes the Studio e2e asserts on, deliberately as raw items rather than through the adapter: the properties under test are properties of the DATA LAYOUT — a tenant is `never-deployed` precisely because the DEPLOYMENT sort key is absent — and seeding through the writer would make the fixture agree with the reader by construction instead of by evidence',
+  ],
+  [
+    'tools/dev/show-config-history.mjs',
+    'reads configuration revisions straight from the table in order to check a publish end to end WITHOUT trusting the page that claims it happened. Reading through the adapter would make it trust exactly the code path it exists to audit',
+  ],
+  [
+    'tools/dev/tamper-audit-row.mjs',
+    'the audit hash chain is only worth having if the tamper it detects is one somebody has actually performed against the table, behind the application. The Studio cannot do this — its IAM policy DENIES UpdateItem and DeleteItem on every `AUDIT#…` item, which is the property under test — so the tamper necessarily comes from outside the adapter. It refuses to run without an explicit local endpoint',
+  ],
+  [
+    'tools/key-last-use.mjs',
+    'GE-011-006 — reads `iam:GetAccessKeyLastUsed` to produce the evidence a key-disable decision needs. IAM is not a service any adapter in this estate owns: the Studio\'s estate reader imports `@aws-sdk/client-iam` but is `server-only` and answers a closed Capability union, and there is no capability for per-key last-use. Read-only by construction — the three calls it makes are the three the read role is granted',
+  ],
+])
+
+/**
+ * Files holding a literal provider endpoint that are not calling it.
+ *
+ * Also empty until the scan widened, and for the same reason rather than
+ * because nothing was there.
+ */
+const PROVIDER_EXEMPT = new Map([
+  [
+    'tests/security/no-reusable-secrets-outside-the-vault.test.mjs',
+    'the endpoint appears as a NEEDLE, not a destination: this guard reads the text of `lib/ai.ts` and asserts that the secret scan happens at a lower index than the post to the vendor — that a `whsec_` pasted into a club note is refused BEFORE it leaves the account rather than after. Deleting the literal is how that guard would be silently disabled, so this rule must not be the thing that pressures anybody into deleting it',
+  ],
+])
 
 /**
  * AWS client constructors, named explicitly for the services this estate has
@@ -296,9 +380,44 @@ const PROVIDER_EXEMPT = new Map()
  * QueryClient and every HTTP wrapper anyone ever writes, and a rule that cries
  * wolf gets deleted. The import check below is the primary detector; this
  * catches a construction whose import was aliased or re-exported.
+ *
+ * IAM was missing until the scan widened, and the widening is how that was
+ * found: `tools/key-last-use.mjs:42` does `new IAMClient({})`, and only the
+ * import rule reported it. Had it reached the client through a local
+ * re-export instead, both detectors would have been silent. That is the
+ * failure mode a hand-kept name list has, so `every AWS service the
+ * repository depends on is a name this rule knows` below reads the list back
+ * off the SDK packages actually declared, rather than trusting this line to
+ * have been maintained.
  */
-const AWS_CLIENT_CTORS =
-  /\bnew\s+(S3|DynamoDB|DynamoDBDocument|SQS|SES|SESv2|STS|KMS|SecretsManager|CloudFront|CloudWatch|CloudWatchLogs|EventBridge|Lambda|SNS|ECS|RDS|Bedrock|BedrockRuntime|CognitoIdentityProvider)Client\s*\(/
+const AWS_CLIENT_NAMES = [
+  // Declared by a workspace today, and asserted complete against the manifests
+  // by `every AWS service the repository depends on is a name this rule knows`.
+  'AccessAnalyzer', 'ACM', 'Backup', 'Budgets', 'CloudFront', 'CloudTrail',
+  'CloudWatch', 'CloudWatchLogs', 'CognitoIdentityProvider', 'ConfigService',
+  'CostAndUsageReportService', 'CostExplorer', 'DynamoDB', 'DynamoDBDocument',
+  'EC2', 'ECR', 'ECS', 'ElastiCache', 'ElasticLoadBalancingV2', 'EventBridge',
+  'GuardDuty', 'Health', 'IAM', 'KMS', 'Lambda', 'Organizations', 'Pricing',
+  'RDS', 'ResourceGroupsTaggingAPI', 'Route53', 'S3', 'SecretsManager',
+  'SecurityHub', 'ServiceQuotas', 'SESv2', 'SQS', 'SSM', 'STS', 'WAFV2',
+  // Not a dependency yet. The Bible names them, and a rule that only knows the
+  // services already reached is a rule that arrives one commit after the first
+  // use of each new one. Extras cost nothing: the coverage test asserts the
+  // manifests are a SUBSET of this list, not that the two are equal.
+  'Bedrock', 'BedrockRuntime', 'SES', 'SNS',
+]
+
+/**
+ * Longest name first: `new DynamoDBDocumentClient(` must not be consumed by the
+ * `DynamoDB` branch. Alternation backtracks and would find it anyway, but a
+ * correctness that depends on backtracking is one an added name can break
+ * silently, and this suite's whole subject is rules that stop looking.
+ */
+const AWS_CLIENT_CTORS = new RegExp(
+  String.raw`\bnew\s+(` +
+    [...AWS_CLIENT_NAMES].sort((a, b) => b.length - a.length).join('|') +
+    String.raw`)Client\s*\(`
+)
 
 /**
  * Provider API hosts. These are endpoints the application calls, not issuer
@@ -468,17 +587,194 @@ test('the exemption lists are reasoned, real, and have not grown silently', () =
   // precisely to prove the append-only extension refuses a delete. Bumped
   // deliberately and with the reason recorded beside the entry, which is what
   // this assertion is for — it forbids the list GROWING SILENTLY, not growing.
+  // 0 -> 6 for AWS and 0 -> 1 for provider when the scan stopped naming four
+  // roots and read the whole repository instead. Those seven files did not
+  // appear; they were always there, on the far side of a boundary the rule had
+  // drawn around itself. Recording them is the point — an unexamined file
+  // reports as compliance, an exempt one reports as a decision somebody made.
   assert.equal(DATABASE_EXEMPT.size, 15, 'the raw-database-client exemption list changed')
-  assert.equal(AWS_EXEMPT.size, 0, 'a file was exempted from the AWS client rule')
-  assert.equal(PROVIDER_EXEMPT.size, 0, 'a file was exempted from the provider endpoint rule')
+  assert.equal(AWS_EXEMPT.size, 6, 'the AWS client exemption list changed')
+  assert.equal(PROVIDER_EXEMPT.size, 1, 'the provider endpoint exemption list changed')
 
-  // Every database exemption is a test or an operational script. A page or a
-  // route appearing here would mean the rule had been exempted, not applied.
-  for (const file of DATABASE_EXEMPT.keys()) {
-    assert.match(
-      file,
-      /(\.(itest|test|spec)\.tsx?|^apps\/web\/scripts\/[\w-]+\.mjs)$/,
-      `${file} is neither a test nor an operational script, and must not be exempt`
+  // Nothing on the request path may be exempt from any of the three rules. A
+  // page, a route handler, a server action or a connector appearing in any list
+  // would mean the rule had been exempted rather than applied, and that is the
+  // one shape of entry no reason can justify: these rules exist precisely
+  // because a request must not be able to reach infrastructure unscoped.
+  //
+  // Stated as the ONE permitted shape rather than as a list of forbidden
+  // directories — a test, or a script run from a shell — so a file in a place
+  // nobody anticipated cannot be exempted by virtue of not having been thought
+  // of. That is the same mistake the scan above just stopped making.
+  const MAY_BE_EXEMPT = /(\.(itest|test|spec)\.(mjs|tsx?)|^(apps\/[\w-]+\/scripts|tools)\/[\w/-]+\.mjs)$/
+  for (const [kind, list] of all) {
+    for (const file of list.keys()) {
+      assert.match(
+        file,
+        MAY_BE_EXEMPT,
+        `${file} is ${kind}-exempt but is neither a test nor a script an operator runs — ` +
+          `anything reachable from a request must go through the adapter, not around it`
+      )
+    }
+  }
+})
+
+/* ------------------------------------------ the rule cannot narrow quietly -- */
+
+test('the scan still reaches the whole tree', () => {
+  // The defect this test exists to prevent is the one this suite shipped with:
+  // `sourceFiles()` named four roots, `tools/` was not among them, and six AWS
+  // clients lived there for months reported as compliance. Worse than missed —
+  // `tools/dev/tamper-audit-row.mjs` records in its own header that `tools/` was
+  // chosen BECAUSE it was outside the scan. A boundary a rule announces is a
+  // boundary somebody will build on.
+  //
+  // So: every top-level directory git reports source in must be reached. The
+  // expected set is computed here from a second, independent `git ls-files`
+  // rather than written down, which is what makes this more than a restatement
+  // of the scan — narrowing `sourceFiles()` to any pathspec reds this test and
+  // names the root that went dark, while a NEW top-level directory is covered
+  // the day it lands rather than the day somebody remembers to add it.
+  const everything = execFileSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard'],
+    { encoding: 'utf8' }
+  )
+    .split('\n')
+    .filter(Boolean)
+    .filter((f) => SOURCE.test(f))
+
+  const expected = new Set(everything.map((f) => f.split('/')[0]))
+  const reached = new Set(sourceFiles().map((f) => f.split('/')[0]))
+
+  // If this is ever 0 or 1 the comparison below is trivially satisfiable, and a
+  // broken `git ls-files` would read as agreement between two empty sets.
+  assert.ok(
+    expected.size >= 4,
+    `only ${expected.size} top-level source directories found — the listing is broken, not the tree`
+  )
+
+  const dark = [...expected].filter((root) => !reached.has(root)).sort()
+  assert.deepEqual(
+    dark,
+    [],
+    `the scan no longer reaches: ${dark.join(', ')}\n\n` +
+      `A forbidden-client rule that lists where it looks finds only what somebody ` +
+      `already suspected. Every root git reports source in must be read.`
+  )
+})
+
+test('the detectors find the clients the owning adapters really hold', () => {
+  // Non-vacuity, and the kind that matters: the three rules above are searches,
+  // and a search that has stopped matching reports a clean estate. `code()` is
+  // a hand-written comment stripper and `moduleRefs()` a hand-written import
+  // parser — either can be broken by an edit that still passes every other test
+  // in this file, because every other test asserts an EMPTY result.
+  //
+  // This one asserts a NON-empty result, over exactly the pipeline the rules
+  // use, against the constructions the owning adapters are known to hold.
+  const found = { database: [], aws: [], provider: [] }
+
+  for (const file of OWNERS.database.keys()) {
+    const text = code(readSource(file))
+    found.database.push(...hits(file, text, /\bnew\s+PrismaClient\s*\(/))
+    for (const ref of moduleRefs(text)) {
+      if (ref.spec === '@prisma/client' && bindsValue(ref.clause, 'PrismaClient')) {
+        found.database.push(`${file} — value-imports PrismaClient`)
+      }
+    }
+  }
+
+  for (const file of OWNERS.aws.keys()) {
+    const text = code(readSource(file))
+    found.aws.push(...hits(file, text, AWS_CLIENT_CTORS))
+    for (const ref of moduleRefs(text)) {
+      if (ref.spec.startsWith('@aws-sdk/') && !/^\s*type\b/.test(ref.clause)) {
+        found.aws.push(`${file} — imports ${ref.spec}`)
+      }
+    }
+  }
+
+  for (const file of OWNERS.provider.keys()) {
+    found.provider.push(...hits(file, code(readSource(file)), PROVIDER_URL))
+  }
+
+  for (const [kind, sites] of Object.entries(found)) {
+    assert.ok(
+      sites.length > 0,
+      `the ${kind} detector found nothing in its own owning adapter. The adapter ` +
+        `holds that client by definition, so the detector is broken — and a broken ` +
+        `detector reports every module in the repository as compliant.`
     )
   }
+
+  // Both halves of the database rule, separately: a construction and a value
+  // import. `bindsValue` alone has already shipped one hole (a namespace import
+  // walked straight through it), and if it silently returned false forever the
+  // construction half would still make the count above non-zero.
+  assert.ok(
+    found.database.some((s) => /value-imports PrismaClient$/.test(s)),
+    'the import half of the database rule matched nothing in lib/db.ts — moduleRefs or bindsValue is broken'
+  )
+  assert.ok(
+    found.database.some((s) => /:\d+$/.test(s)),
+    'the construction half of the database rule matched nothing in lib/db.ts'
+  )
+  assert.ok(
+    found.aws.some((s) => /:\d+$/.test(s)),
+    'no AWS constructor matched inside an owning adapter — AWS_CLIENT_NAMES or the regex build is broken'
+  )
+})
+
+test('every AWS service the repository depends on is a name this rule knows', () => {
+  // The constructor rule is a name list, and a name list falls behind the
+  // moment a workspace adds a dependency. It fell behind by IAM, which is how
+  // `tools/key-last-use.mjs` came to be caught by the import rule alone.
+  //
+  // The manifests are the authority, and they are found rather than listed, so
+  // a new workspace counts from the day it exists.
+  const manifests = execFileSync('git', ['ls-files', '*package.json'], { encoding: 'utf8' })
+    .split('\n')
+    .filter(Boolean)
+    .filter((f) => !f.includes('node_modules/'))
+
+  assert.ok(manifests.length > 3, `only ${manifests.length} package manifests found — the listing is broken`)
+
+  const declared = new Set()
+  for (const file of manifests) {
+    const text = readSource(file)
+    if (!text) continue
+    const pkg = JSON.parse(text)
+    for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
+      for (const name of Object.keys(pkg[field] ?? {})) {
+        // `client-*` only. `lib-dynamodb` and `s3-request-presigner` are not
+        // service clients: the first exports DynamoDBDocumentClient, which is
+        // named above on its own, and the second exports no client at all.
+        if (name.startsWith('@aws-sdk/client-')) declared.add(name)
+      }
+    }
+  }
+
+  assert.ok(
+    declared.size > 5,
+    `only ${declared.size} @aws-sdk service packages found across ${manifests.length} manifests — ` +
+      `the manifests parsed but the dependency read did not, and an empty set agrees with any list`
+  )
+
+  // `@aws-sdk/client-elastic-load-balancing-v2` exports ElasticLoadBalancingV2Client
+  // and `client-route-53` exports Route53Client: the package suffix and the
+  // class name differ in punctuation and case but in nothing else, across all
+  // thirty-eight of them. So compare on letters and digits alone.
+  const plain = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const known = new Set(AWS_CLIENT_NAMES.map(plain))
+
+  const unknown = [...declared].filter((p) => !known.has(plain(p.slice('@aws-sdk/client-'.length)))).sort()
+  assert.deepEqual(
+    unknown,
+    [],
+    `these AWS services are dependencies, but no name in AWS_CLIENT_NAMES matches them:\n  ` +
+      `${unknown.join('\n  ')}\n\n` +
+      `A construction of one of these, reached through a local re-export, would be ` +
+      `invisible to both detectors. Add the client class name, without the trailing "Client".`
+  )
 })

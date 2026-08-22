@@ -610,11 +610,45 @@ for progress:
 - [x] **GE-020-002** — Prevent controllers, UI, connectors and general modules from importing raw database, provider or AWS clients.
   - Status: PASS
   - Code/config: `tests/architecture/forbidden-clients.test.mjs`
-  - Evidence: no module outside `lib/db.ts` constructs a Prisma client, none
-    outside `lib/s3.ts` and the Studio's `registry.ts` constructs an AWS one,
-    and no provider URL is called outside `lib/ai.ts`. **One real violation
-    existed and was fixed rather than allowlisted** — the document summary page
-    built its own `S3Client` and now reads through `getDocumentBytes`.
+  - Evidence, stated over the whole repository and with the exemptions counted
+    in rather than left implied: **no module constructs a Prisma client except
+    `lib/db.ts` and the fifteen exempt tests and operational scripts; none
+    constructs an AWS client except `lib/s3.ts`, the Studio's `registry.ts`,
+    its estate reader `lib/aws/client.ts` and the six exempt operator scripts;
+    and no provider URL appears outside `lib/ai.ts` and the one exempt guard
+    that asserts on it.** Every exemption is named in
+    `forbidden-clients.test.mjs` with its reason, and the three counts are
+    pinned, so this sentence cannot drift from the rule without a test going
+    red. **One real violation existed and was fixed rather than allowlisted** —
+    the document summary page built its own `S3Client` and now reads through
+    `getDocumentBytes`.
+  - **The scan named four roots and has been widened to the repository.** The
+    absolute form this evidence line used to take — "none outside `lib/s3.ts`
+    and the Studio's `registry.ts`" — was not true when it was written:
+    `apps`, `packages`, `modules` and `blueprints` were read and `tools/` was
+    not, and six files
+    there hold an AWS client — five DynamoDB, one IAM. Nothing was smuggled;
+    each is an operator script that runs with no session and each is defensible.
+    What was wrong is that the rule had published where its attention stopped,
+    and the header of `tools/dev/tamper-audit-row.mjs` cited that boundary as
+    the reason for choosing the directory. A rule that lists where it looks
+    finds only what somebody already suspected, so `sourceFiles()` now takes no
+    pathspec at all, the six are named exemptions carrying their reasons, and a
+    seventh fails. That comment has been corrected too — it documented the
+    evasion route.
+  - Two ways this rule could rot quietly, now asserted rather than trusted:
+    narrowing the scan reds `the scan still reaches the whole tree`, which
+    derives the roots it expects from a second `git ls-files` rather than from
+    a written list, so a top-level directory added next month is covered on the
+    day it lands; and the constructor name list is asserted to cover every
+    `@aws-sdk/client-*` package the workspace manifests declare. That second
+    one caught a live gap — `IAMClient` was not a name the rule knew, so
+    `tools/key-last-use.mjs` was reported by the import detector alone and a
+    local re-export would have hidden it from both.
+  - `the detectors find the clients the owning adapters really hold` asserts a
+    NON-empty result. Every other test here asserts an empty one, so a broken
+    comment stripper or import parser read as a clean estate: emptying
+    `moduleRefs()` passed all six of the previous tests.
   - The rule shipped with a hole an adversarial pass found:
     `import * as p from "@prisma/client"` then `new p.PrismaClient()` passed
     cleanly, because the check searched the import clause for a literal
@@ -624,7 +658,15 @@ for progress:
     byte-for-byte, a raw client in a page, a provider URL, an AWS constructor
     with no import, an aliased AWS import, a dynamic
     `await import("@aws-sdk/client-sts")`, owner rot in both adapters, and a
-    rogue **untracked** file proving the scan sees uncommitted code.
+    rogue **untracked** file proving the scan sees uncommitted code. Six more
+    at the widening, each restored and each read per test rather than by suite
+    exit code: a `PrismaClient` in the summary page FAILS naming file and line;
+    the same client inside `lib/db.ts` PASSES; an `S3Client` in a `services/`
+    directory that did not previously exist FAILS on the widened rule and
+    passed 6/6 on the narrow one; re-adding an `apps packages` pathspec FAILS
+    naming `blueprints, modules, tests, tools`; deleting `IAM` from the name
+    list FAILS naming `@aws-sdk/client-iam`; and emptying `moduleRefs()` FAILS
+    on the new non-vacuity test while passing 6/6 on the narrow suite.
   - Two limits recorded rather than papered over: the provider rule anchors on
     `https?://` immediately followed by the host, so a host assembled from a
     string constant is not detected; and the AWS constructor pattern matches

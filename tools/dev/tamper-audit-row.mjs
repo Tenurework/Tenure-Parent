@@ -14,10 +14,15 @@
  * The attacker is not the Studio. The Studio's IAM policy DENIES UpdateItem and
  * DeleteItem on every `AUDIT#…` item (infrastructure/studio/dynamodb.tf), so the
  * console genuinely cannot do this — which is the property under test. A tamper
- * helper inside `apps/` would also trip `forbidden-clients`, which names
- * `lib/registry.ts` as the only module in that app allowed to hold a DynamoDB
- * client and keeps an EMPTY exemption list. `tools/` is outside that scan and is
- * where the other registry-touching scripts already live.
+ * that the application could perform would not be a tamper; it would be a
+ * feature. So this lives outside `apps/`, beside the other registry-touching
+ * scripts.
+ *
+ * That is a reason, not an escape. An earlier version of this comment said
+ * `tools/` "is outside that scan" — which was true, and was the wrong thing for
+ * it to be. `tests/architecture/forbidden-clients.test.mjs` now reads the whole
+ * repository, and this file is one of six named in its AWS exemption list with
+ * the reason recorded. Moving a client here hides it from nothing.
  *
  * ## The one guard that matters
  *
