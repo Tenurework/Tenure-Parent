@@ -41,7 +41,21 @@
  * nothing about a missing environment variable.
  */
 
-export type Partition = "aws" | "aws-us-gov" | "aws-cn"
+/**
+ * The partitions this build knows, as a value — the type is derived from it.
+ *
+ * These used to be written twice: a union here and a `Set` of the same three
+ * strings at `PARTITIONS` below. Two spellings are two places to add a
+ * partition and one place to forget, and each half fails silently in its own
+ * direction. A partition in the type but missing from the `Set` is rejected by
+ * the validation that claims to accept it; a partition in the `Set` but missing
+ * from the type reaches every consumer as a value no exhaustiveness check has
+ * ever seen. Deriving one from the other removes the gap rather than testing
+ * for it, and gives `partition-services.ts` a list it can iterate at runtime.
+ */
+export const ALL_PARTITIONS = ["aws", "aws-us-gov", "aws-cn"] as const
+
+export type Partition = (typeof ALL_PARTITIONS)[number]
 export type DeployEnvironment = "development" | "staging" | "production"
 
 export interface CellContext {
@@ -81,7 +95,7 @@ export class CellContextError extends Error {
   }
 }
 
-const PARTITIONS: ReadonlySet<string> = new Set(["aws", "aws-us-gov", "aws-cn"])
+const PARTITIONS: ReadonlySet<string> = new Set<string>(ALL_PARTITIONS)
 const ENVIRONMENTS: ReadonlySet<string> = new Set(["development", "staging", "production"])
 
 /**

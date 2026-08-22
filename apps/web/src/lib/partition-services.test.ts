@@ -1,11 +1,13 @@
 import {
+  ALL_SERVICES,
   PARTITION_SERVICES,
   PartitionServiceError,
   requireService,
   serviceAvailableHere,
   serviceAvailableIn,
+  type ServiceId,
 } from "./partition-services"
-import { __resetCellContext, type Partition } from "./cell-context"
+import { ALL_PARTITIONS, __resetCellContext } from "./cell-context"
 
 /**
  * GE-010-007 — the partition is resolved, and now something asks it a question.
@@ -20,8 +22,6 @@ import { __resetCellContext, type Partition } from "./cell-context"
  * The matrix tests exist so the decision is a decision: a partition row that is
  * quietly widened has to fail something.
  */
-
-const ALL_PARTITIONS: Partition[] = ["aws", "aws-us-gov", "aws-cn"]
 
 const ORIGINAL_ENV = { ...process.env }
 
@@ -48,6 +48,119 @@ function runningIn(partition: string, region: string): void {
 afterEach(() => {
   process.env = { ...ORIGINAL_ENV }
   __resetCellContext()
+})
+
+/**
+ * The guard that has to hold when nobody is looking.
+ *
+ * Every assertion below iterates `ALL_SERVICES` and `ALL_PARTITIONS` rather
+ * than naming services, so a service added tomorrow is covered by tests written
+ * today. That is the whole point: the previous version of this file named `s3`
+ * and `anthropic-public-api` in hand-written assertions, and a third service was
+ * therefore checked by nothing at all.
+ */
+describe("every service has a decision, in every partition", () => {
+  it("reads a non-empty matrix on both axes", () => {
+    // A loop over an empty collection asserts nothing and reports clean. If the
+    // derivation of either list breaks, this suite must fail rather than pass
+    // emptily — every test below is a loop over one of these two.
+    expect(ALL_SERVICES.length).toBeGreaterThan(0)
+    expect(ALL_PARTITIONS.length).toBeGreaterThan(0)
+  })
+
+  it("decides every service against every partition explicitly", () => {
+    // The one good state, asserted positively: a boolean somebody wrote down
+    // for each cell of the grid. Not "the ones I remembered are right".
+    for (const service of ALL_SERVICES) {
+      for (const partition of ALL_PARTITIONS) {
+        expect(typeof serviceAvailableIn(service, partition)).toBe("boolean")
+      }
+    }
+  })
+
+  it("has no service that is unreachable everywhere", () => {
+    // A row of all-`false` is not a decision, it is a service somebody added and
+    // never finished thinking about — and its symptom is a feature that is off
+    // in the commercial partition with a refusal message blaming the partition.
+    for (const service of ALL_SERVICES) {
+      const reachableIn = ALL_PARTITIONS.filter((partition) =>
+        serviceAvailableIn(service, partition),
+      )
+      expect(reachableIn.length).toBeGreaterThan(0)
+    }
+  })
+
+  it("agrees with the partition-keyed view of itself", () => {
+    // `PARTITION_SERVICES` is derived, and this is what "derived" has to mean:
+    // no service appears in a partition row that the service-keyed table denies,
+    // and none is missing from one the table allows.
+    for (const partition of ALL_PARTITIONS) {
+      const offered = PARTITION_SERVICES[partition]
+      expect(offered).toBeDefined()
+      for (const service of ALL_SERVICES) {
+        expect(offered.has(service)).toBe(serviceAvailableIn(service, partition))
+      }
+      // Nothing in the row that is not a known service.
+      for (const service of offered) {
+        expect(ALL_SERVICES).toContain(service)
+      }
+    }
+  })
+})
+
+describe("a service with no entry is unavailable, not allowed", () => {
+  // `ServiceId` is `keyof` the table, so a service with no row cannot be NAMED
+  // in typed code — `requireService("ses")` is a compile error that says so.
+  // These cover the untyped ways a name still arrives: a cast, a value read out
+  // of config, anything that crossed a JSON boundary.
+  const unknownService = "ses-email" as ServiceId
+
+  it("fails closed in every partition, including the commercial one", () => {
+    for (const partition of ALL_PARTITIONS) {
+      expect(serviceAvailableIn(unknownService, partition)).toBe(false)
+    }
+  })
+
+  // Every name an object inherits without anyone declaring it. Read off
+  // `Object.prototype` rather than listed, so a runtime that adds another
+  // inherited member is covered by this test without it being edited.
+  const inheritedNames = Object.getOwnPropertyNames(Object.prototype)
+
+  it("treats an inherited property name as no service at all", () => {
+    // `key in table` and `table[key]` both walk the prototype chain, so
+    // "toString" and "constructor" once answered as though they had a row.
+    expect(inheritedNames.length).toBeGreaterThan(0)
+    for (const name of inheritedNames) {
+      for (const partition of ALL_PARTITIONS) {
+        expect(serviceAvailableIn(name as ServiceId, partition)).toBe(false)
+      }
+      expect(() => requireService(name as ServiceId, "aws")).toThrow(
+        /is not a service this build has decided about/,
+      )
+    }
+  })
+
+  it("treats an inherited property name as no partition either", () => {
+    for (const name of inheritedNames) {
+      expect(serviceAvailableIn("s3", name)).toBe(false)
+      expect(() => requireService("s3", name)).toThrow(
+        /is not a partition this build knows/,
+      )
+    }
+  })
+
+  it("refuses, and says the service is the thing it cannot vouch for", () => {
+    // The distinction matters to whoever reads the log: "not in this partition"
+    // sends an operator to the partition, and this is not that problem.
+    try {
+      requireService(unknownService, "aws")
+      throw new Error("should have refused")
+    } catch (err) {
+      expect(err).toBeInstanceOf(PartitionServiceError)
+      expect((err as Error).message).toMatch(/is not a service this build has decided about/)
+      expect((err as Error).message).toMatch(/ses-email/)
+    }
+  })
 })
 
 describe("the matrix says what exists where", () => {

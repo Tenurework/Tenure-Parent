@@ -1,4 +1,4 @@
-import { cellContext, type Partition } from "@/lib/cell-context"
+import { ALL_PARTITIONS, cellContext, type Partition } from "@/lib/cell-context"
 
 /**
  * GE-010-007 — does the thing this code is about to call actually exist in the
@@ -34,37 +34,130 @@ import { cellContext, type Partition } from "@/lib/cell-context"
  */
 
 /**
- * The services this application reaches. Not every AWS service — the ones with
- * a call site in `apps/web`.
+ * The matrix. One row per service, one explicit decision per partition.
+ *
+ * ## Why the type is derived from the table instead of declared beside it
+ *
+ * `ServiceId` used to be a hand-written union, and the matrix a separate
+ * `Record<Partition, ReadonlySet<ServiceId>>`. That checked the two axes very
+ * differently, and only one of them was actually checked. The partition axis
+ * was exhaustive — a fourth partition will not compile until every row names
+ * it. The SERVICE axis was not constrained at all, because a `Set<ServiceId>`
+ * governs what may go *into* it and says nothing about what must. A service
+ * added to the union and to no row compiled cleanly and answered "unavailable"
+ * in all three partitions, including the commercial one that can plainly reach
+ * it — so the first symptom would have been the pilot losing a feature, with a
+ * refusal message blaming a partition that was not the problem.
+ *
+ * That is measured, not assumed: adding a third member to the union left
+ * `tsc --noEmit` clean and all fifteen tests in this file green.
+ *
+ * Deriving `ServiceId` from `keyof` makes the state unrepresentable rather than
+ * merely detectable. A service name *is* a key of this table, so there is no
+ * way to name one the table has not decided; a call site asking for a service
+ * with no row fails at the call site, naming it, instead of being quietly told
+ * "no" everywhere.
+ *
+ * `satisfies` closes the other axis at the same time: every row must decide
+ * every partition explicitly. Not "listed means yes, absent means no" — in the
+ * old shape a `false` somebody reasoned about and an entry nobody wrote were
+ * the same absence, and only one of them is a decision.
  */
-export type ServiceId =
-  /** Document storage. `lib/s3.ts`. */
-  | "s3"
+const SERVICE_AVAILABILITY = {
   /**
-   * `api.anthropic.com`. Not an AWS service at all: a public-internet SaaS
-   * endpoint, which is exactly why it needs a row. It is reachable from a
-   * commercial cell and is not part of the GovCloud or China partitions, so a
-   * cell in either has no partition-local way to reach it and must not pretend
-   * a configured key means it can.
+   * Document storage. `lib/s3.ts`. Present in GovCloud and in both China
+   * regions — the matrix is a statement about reality, not a convenient way to
+   * say no, so this row is `true` three times.
    */
-  | "anthropic-public-api"
+  s3: { aws: true, "aws-us-gov": true, "aws-cn": true },
+  /**
+   * `api.anthropic.com`. Not an AWS service at all, which is exactly why it
+   * needs a row: a cell in GovCloud or China has no partition-local route to a
+   * public-internet SaaS endpoint, and a configured key does not create one.
+   * Sending student records from a GovCloud cell to a commercial endpoint is
+   * the failure an operator chose GovCloud to prevent.
+   */
+  "anthropic-public-api": { aws: true, "aws-us-gov": false, "aws-cn": false },
+} as const satisfies Record<string, Record<Partition, boolean>>
 
 /**
- * The matrix. One row per partition, exhaustive over `Partition` by its type —
- * adding a fourth partition to `cell-context.ts` will not compile until someone
- * decides what it offers, which is the point.
+ * The services this application reaches. Not every AWS service — the ones with
+ * a call site in `apps/web`, which `tests/architecture/forbidden-clients.test.mjs`
+ * bounds to the adapters that own a client.
  */
-export const PARTITION_SERVICES: Record<Partition, ReadonlySet<ServiceId>> = {
-  // Commercial. The only partition with a route to the public internet endpoint
-  // in the deployment shape this app has.
-  aws: new Set<ServiceId>(["s3", "anthropic-public-api"]),
-  // S3 is a GovCloud service. `api.anthropic.com` is not: sending student
-  // records from a GovCloud cell to a commercial SaaS endpoint is the failure
-  // an operator chose GovCloud to prevent.
-  "aws-us-gov": new Set<ServiceId>(["s3"]),
-  // S3 is present in Beijing and Ningxia. `api.anthropic.com` is not reachable
-  // as a matter of both partition isolation and the law of the jurisdiction.
-  "aws-cn": new Set<ServiceId>(["s3"]),
+export type ServiceId = keyof typeof SERVICE_AVAILABILITY
+
+/**
+ * Every service, enumerable at runtime.
+ *
+ * A TypeScript union cannot be iterated, so while `ServiceId` was hand-written
+ * no test could loop over the services — every assertion had to name one, and a
+ * service nobody named was a service nobody checked. Derived from the table's
+ * own keys so it cannot be the stale copy.
+ */
+export const ALL_SERVICES: readonly ServiceId[] = Object.keys(
+  SERVICE_AVAILABILITY,
+) as ServiceId[]
+
+/**
+ * The same matrix keyed the other way: what each partition offers.
+ *
+ * Derived rather than written, so the two views cannot disagree. A second
+ * hand-maintained list would be a second answer, and the one that drifts is
+ * whichever nobody looks at.
+ */
+const partitionServices = {} as Record<Partition, ReadonlySet<ServiceId>>
+for (const partition of ALL_PARTITIONS) {
+  partitionServices[partition] = new Set(
+    ALL_SERVICES.filter((service) => SERVICE_AVAILABILITY[service][partition]),
+  )
+}
+
+export const PARTITION_SERVICES: Record<Partition, ReadonlySet<ServiceId>> = partitionServices
+
+/**
+ * Whether `key` is a row this file wrote, as opposed to one every object has.
+ *
+ * `key in table` and `table[key]` both walk the prototype chain, so `"toString"`
+ * and `"constructor"` answer as though they were services. `serviceAvailableIn`
+ * still refused them — `Function.prototype["aws"]` is undefined, so the second
+ * lookup failed — but it refused them by luck rather than by construction, and
+ * the refusal MESSAGE got it wrong: it reported a real service missing from a
+ * partition instead of a name that is not a service at all, which sends whoever
+ * reads the log to the wrong place entirely.
+ */
+function hasOwnRow(table: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(table, key)
+}
+
+/**
+ * What a refusal says, in the three ways it can be reached.
+ *
+ * Separated so each branch names the actual problem. "Unavailable" for a
+ * service this build has never heard of and "unavailable" for a service
+ * deliberately withheld from a partition send an operator to completely
+ * different places, and a single message cannot do both.
+ */
+function refusalMessage(service: string, partition: string): string {
+  if (!hasOwnRow(SERVICE_AVAILABILITY, service)) {
+    return (
+      `"${service}" is not a service this build has decided about, so nothing can be said about ` +
+      `whether the "${partition}" partition offers it. Give it a row in SERVICE_AVAILABILITY ` +
+      `(lib/partition-services.ts). Refusing rather than assuming it is reachable.`
+    )
+  }
+  if (!hasOwnRow(PARTITION_SERVICES, partition)) {
+    return (
+      `"${partition}" is not a partition this build knows (${ALL_PARTITIONS.join(", ")}), so ` +
+      `nothing can be said about whether "${service}" exists in it. Refusing rather than ` +
+      `assuming commercial AWS.`
+    )
+  }
+  return (
+    `"${service}" does not exist in the "${partition}" partition, and this process is running ` +
+    `in it. The call site must degrade or use a partition-local equivalent — reaching across a ` +
+    `partition boundary is how a tenant who chose that partition stops being in it.`
+  )
 }
 
 export class PartitionServiceError extends Error {
@@ -72,14 +165,7 @@ export class PartitionServiceError extends Error {
     readonly service: ServiceId,
     readonly partition: string,
   ) {
-    super(
-      partition in PARTITION_SERVICES
-        ? `"${service}" does not exist in the "${partition}" partition, and this process is running in it. ` +
-            `The call site must degrade or use a partition-local equivalent — reaching across a partition ` +
-            `boundary is how a tenant who chose that partition stops being in it.`
-        : `"${partition}" is not a partition this build knows (aws, aws-us-gov, aws-cn), so nothing can be ` +
-            `said about whether "${service}" exists in it. Refusing rather than assuming commercial AWS.`,
-    )
+    super(refusalMessage(service, partition))
     this.name = "PartitionServiceError"
   }
 }
@@ -92,10 +178,18 @@ export class PartitionServiceError extends Error {
  * claim about the environment and not a guarantee about the value.
  */
 export function serviceAvailableIn(service: ServiceId, partition: string): boolean {
-  const offered: ReadonlySet<ServiceId> | undefined = (
-    PARTITION_SERVICES as Record<string, ReadonlySet<ServiceId>>
-  )[partition]
-  return offered ? offered.has(service) : false
+  // Both lookups are widened to `string` deliberately. The parameters are
+  // typed, but a value that crossed a JSON boundary or an `as` cast arrives
+  // here unchecked, and this function must answer "no" for it rather than
+  // throw a TypeError the caller has no branch for.
+  if (!hasOwnRow(SERVICE_AVAILABILITY, service)) return false
+  const row: Readonly<Record<string, boolean>> = (
+    SERVICE_AVAILABILITY as Readonly<Record<string, Readonly<Record<string, boolean>>>>
+  )[service]
+  if (!hasOwnRow(row, partition)) return false
+  // `=== true`, not truthiness: an absent partition key must read as a refusal
+  // and not as an answer.
+  return row[partition] === true
 }
 
 /** Whether `service` exists in the partition **this process** is running in. */
