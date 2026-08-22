@@ -5,12 +5,46 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**1148 files · 13 domains with code · 1 declared and unbuilt · 23 shared.**
+**1155 files · 19 workspaces · 13 domains with code · 1 declared and unbuilt · 23 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
 stops having boundaries: one unclaimed file at a time, each individually
 defensible.
+
+## Where the map looks
+
+Every workspace `package.json` declares, derived rather than listed. The list
+used to be the three literal paths `apps/web/src`, `apps/system-studio/src` and
+`packages` — and `blueprints/` and `modules/` were in none of them, so seven
+tracked TypeScript files including the module catalog itself had no owner while
+this document reported none unclaimed. A guard that enumerates where it looks is
+clean about everywhere it forgot.
+
+- `apps/system-studio/`
+- `apps/web/`
+- `blueprints/`
+- `modules/`
+- `packages/audit/`
+- `packages/authorization/`
+- `packages/configuration/`
+- `packages/contracts/`
+- `packages/finops/`
+- `packages/generality-fixtures/`
+- `packages/identity/`
+- `packages/metadata/`
+- `packages/module-runtime/`
+- `packages/organization-model/`
+- `packages/payments/`
+- `packages/platform-config/`
+- `packages/provisioning/`
+- `packages/releases/`
+- `packages/workflow/`
+
+A new application or package cannot avoid this list: `npm ci` refuses to install
+when `package-lock.json` does not name a declared workspace, so the declaration
+that puts a workspace into the build is the same one that puts it into this map,
+and every file in it is unclaimed until a domain claims it.
 
 ## Domains
 
@@ -20,7 +54,7 @@ defensible.
 | `identity` | 86 | engine + tenant | Who someone is: providers, sessions, the sign-in surface. |
 | `authorization` | 71 | engine + tenant | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 47 | engine + tenant | The org graph: institutions, organizations, roles, seats, the directory. |
-| `configuration` | 116 | engine + tenant | Layered configuration, blueprints, module resolution, tenancy scoping. |
+| `configuration` | 123 | engine + tenant | Layered configuration, blueprints, module resolution, tenancy scoping. |
 | `workflow` | 22 | engine + tenant | Approvals, their gates and their state machine. |
 | `files` | 19 | tenant | Documents and attachments: storage, retrieval, editing. |
 | `search-memory` | 9 | tenant | Retrieval across everything a principal may already see, and org memory. |
@@ -48,7 +82,7 @@ is gone rather than reworded.
 |---|---:|---|
 | `tenant` | 505 | What a customer signs into. Everything it serves is scoped to one institution. |
 | `deployer` | 336 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
-| `engine` | 307 | Library code with no surface of its own. It renders to nobody; it is rendered through by whichever app imports it, so it belongs to neither audience and is available to both. |
+| `engine` | 314 | Library code with no surface of its own. It renders to nobody; it is rendered through by whichever app imports it, so it belongs to neither audience and is available to both. |
 
 ### Rendered to no declared audience
 
@@ -64,6 +98,19 @@ These have no code. They are listed rather than omitted, because a map showing
 Relay by Tenure: multimodal retrieval, drafting and automation.
 
 Today there is one direct call to a vendor API in lib/ai.ts, with no gateway, no per-tenant policy, no cost accounting and no prompt audit. That file is owned by `integrations` below until a gateway exists, because that is what it currently is.
+
+## Not source
+
+Inside a workspace and shipped by none of it. Matched against the path relative
+to its workspace, so the rule reads the same for every one of them. This is an
+exclusion list on purpose — a subtree nobody named here is source, and source
+with no domain fails.
+
+| Rule | Files | Why |
+|---|---:|---|
+| `e2e` | 96 | Playwright suites. They drive the product through a browser rather than being part of it, and a spec that walks four domains in one journey has no single owner to assign. |
+| `scripts` | 20 | Operational scripts run by a human or a container entrypoint, not imported by anything the product serves. |
+| `build configuration` | 8 | Next, Tailwind, PostCSS, ESLint, Jest and Playwright configuration at a workspace root. It configures the toolchain every domain builds through and belongs to none of them. |
 
 ## Shared
 
