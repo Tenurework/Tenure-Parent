@@ -21,6 +21,28 @@
  * would read as a complete map of a ten-domain system; the gap is the useful
  * information.
  *
+ * ── On where the map looks ──────────────────────────────────────────────────
+ *
+ * `ROOTS` used to be the literal list `['apps/web/src', 'apps/system-studio/src',
+ * 'packages']`, and a guard that enumerates where it looks reports a clean bill
+ * of health over everywhere it forgot. Two npm workspaces were outside all three
+ * — `blueprints/` and `modules/`, seven tracked TypeScript files including the
+ * module catalog itself — and the map reported ZERO unclaimed files while owning
+ * none of them. A third application would have arrived the same way: silently,
+ * with the headline still reading "0 unclaimed".
+ *
+ * So the roots are now DERIVED from the workspaces `package.json` declares. The
+ * declaration is not optional — `npm ci` refuses to install when a workspace is
+ * missing from the lock file, which `tests/architecture/lockfile-knows-every-workspace.test.mjs`
+ * asserts before CI can — so a new app or package cannot enter the repository
+ * without entering this map, and every file in it is an orphan until a domain
+ * claims it.
+ *
+ * The complement is `NON_SOURCE`: subtrees inside a workspace that ship nothing.
+ * That list is an EXCLUSION list on purpose. Enumerating what to include fails
+ * open — the tree nobody listed is invisible. Enumerating what to exclude fails
+ * closed: a subtree nobody listed shows up as unclaimed and reds the build.
+ *
  * Usage:  node tools/ownership-map.mjs [--check]
  */
 import fs from 'node:fs'
@@ -36,8 +58,96 @@ import { EXPERIENCES } from './entry-point-inventory.mjs'
 
 const OUT = 'docs/architecture/ownership.md'
 
-/** Roots the map governs. Everything else is not source. */
-const ROOTS = ['apps/web/src', 'apps/system-studio/src', 'packages']
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+/**
+ * The workspace directories `package.json` globs actually resolve to.
+ *
+ * Same resolution as `tests/architecture/lockfile-knows-every-workspace.test.mjs`
+ * performs against the lock file, for the same reason: the workspace list is the
+ * one declaration a new application or package cannot skip, because `npm ci`
+ * refuses to install at all when the lock file does not name it.
+ */
+function workspaceDirs() {
+  const { workspaces = [] } = JSON.parse(
+    fs.readFileSync(path.join(REPO, 'package.json'), 'utf8'),
+  )
+  const dirs = []
+  for (const pattern of workspaces) {
+    if (!pattern.endsWith('/*')) {
+      if (fs.existsSync(path.join(REPO, pattern, 'package.json'))) dirs.push(pattern)
+      continue
+    }
+    const parent = pattern.slice(0, -2)
+    const full = path.join(REPO, parent)
+    if (!fs.existsSync(full)) continue
+    for (const entry of fs.readdirSync(full, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const rel = `${parent}/${entry.name}`
+      if (fs.existsSync(path.join(REPO, rel, 'package.json'))) dirs.push(rel)
+    }
+  }
+  return dirs.sort()
+}
+
+/**
+ * Roots the map governs: every declared workspace, whole.
+ *
+ * Whole rather than `<workspace>/src` — the narrower form would put
+ * `packages/foo/lib/thing.ts` back outside the map the day somebody writes it,
+ * which is the defect this derivation exists to remove, reintroduced one
+ * directory lower down.
+ */
+const ROOTS = workspaceDirs()
+
+/**
+ * What is inside a workspace and is nevertheless not shipped source.
+ *
+ * Each entry is matched against the path RELATIVE to its workspace, so the rule
+ * reads the same for every workspace and cannot quietly become a list of
+ * specific directories. Everything not named here is source, and source with no
+ * domain fails — which is the direction an omission has to fail in.
+ */
+const NON_SOURCE = [
+  {
+    key: 'e2e',
+    matches: (rest) => rest.startsWith('e2e/'),
+    why:
+      'Playwright suites. They drive the product through a browser rather than being part of ' +
+      'it, and a spec that walks four domains in one journey has no single owner to assign.',
+  },
+  {
+    key: 'scripts',
+    matches: (rest) => rest.startsWith('scripts/'),
+    why:
+      'Operational scripts run by a human or a container entrypoint, not imported by anything ' +
+      'the product serves.',
+  },
+  {
+    key: 'build configuration',
+    matches: (rest) => /^[^/]+\.config\.[cm]?[jt]sx?$/.test(rest),
+    why:
+      'Next, Tailwind, PostCSS, ESLint, Jest and Playwright configuration at a workspace root. ' +
+      'It configures the toolchain every domain builds through and belongs to none of them.',
+  },
+]
+
+/** Why a file inside a workspace is not source, or `null` if it is. */
+function nonSourceReason(file) {
+  const workspace = ROOTS.find((root) => file.startsWith(`${root}/`))
+  if (workspace === undefined) return null
+  const rest = file.slice(workspace.length + 1)
+  return NON_SOURCE.find((rule) => rule.matches(rest))?.why ?? null
+}
+
+/**
+ * Extensions that carry behaviour.
+ *
+ * `.js` and `.cjs` are here for the same reason `.css` was added: the filter is
+ * itself a place the map can stop looking, and a `.js` file under `src/` would
+ * have been invisible to it.
+ */
+const SOURCE_EXTENSIONS = /\.(ts|tsx|mjs|cjs|js|jsx|css)$/
 
 /**
  * The fourteen domains, each owning path prefixes.
@@ -184,6 +294,15 @@ const DOMAINS = [
       'packages/module-runtime/',
       'packages/metadata/',
       'packages/contracts/',
+      // The two workspaces the map could not see until its roots were derived
+      // from `package.json` rather than listed. Both are this domain's sentence
+      // read literally — "layered configuration, blueprints, module resolution":
+      // `blueprints/` holds the Tenure-authored system definitions and the
+      // archetype compiler that produces one, and `modules/` is the catalog of
+      // what a system may switch on, declared as manifests over
+      // `packages/module-runtime/` which this domain already owns.
+      'blueprints/',
+      'modules/',
       'apps/web/src/lib/envelopes/',
     ],
   },
@@ -414,14 +533,34 @@ const DOMAINS = [
   },
 ]
 
+/** Tracked, plus untracked-and-not-ignored, under one pathspec. */
+const gitFiles = (pathspec) =>
+  execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', pathspec], {
+    encoding: 'utf8',
+    cwd: REPO,
+  })
+    .split('\n')
+    .filter(Boolean)
+
+/** Every source file the map governs. */
 const listFiles = () =>
-  ROOTS.flatMap((root) =>
-    execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', `${root}/**`], {
-      encoding: 'utf8',
-    })
-      .split('\n')
-      .filter(Boolean),
-  ).filter((f) => /\.(ts|tsx|mjs|css)$/.test(f))
+  ROOTS.flatMap((root) => gitFiles(`${root}/**`))
+    .filter((f) => SOURCE_EXTENSIONS.test(f))
+    .filter((f) => nonSourceReason(f) === null)
+
+/**
+ * The complement: source-shaped files inside a workspace that a `NON_SOURCE`
+ * rule excuses. Exported so the document can count them and so the test can
+ * check that every file in a workspace is in exactly one of the two lists.
+ */
+export function nonSourceFiles() {
+  return ROOTS.flatMap((root) =>
+    gitFiles(`${root}/**`)
+      .filter((f) => SOURCE_EXTENSIONS.test(f))
+      .filter((f) => nonSourceReason(f) !== null)
+      .map((file) => ({ file, workspace: root, rest: file.slice(root.length + 1) })),
+  )
+}
 
 /**
  * Files that are genuinely cross-cutting, with the reason.
@@ -479,12 +618,19 @@ const SHARED_PREFIXES = [
 export const EXPERIENCE_OF_SOURCE = [
   ...EXPERIENCES.map((e) => ({
     key: e.key,
-    prefix: `${e.app}/src/`,
+    prefixes: [`${e.app}/src/`],
     what: e.what,
   })),
   {
     key: 'engine',
-    prefix: 'packages/',
+    // Every workspace that is not one of the applications, derived rather than
+    // written as `'packages/'`. The literal was the same failure as the old
+    // ROOTS list one level along: `blueprints/` and `modules/` are library code
+    // with no surface, and the prefix that was supposed to say so did not
+    // reach them.
+    prefixes: workspaceDirs()
+      .filter((ws) => !EXPERIENCES.some((e) => e.app === ws))
+      .map((ws) => `${ws}/`),
     what:
       'Library code with no surface of its own. It renders to nobody; it is rendered through by ' +
       'whichever app imports it, so it belongs to neither audience and is available to both.',
@@ -493,7 +639,7 @@ export const EXPERIENCE_OF_SOURCE = [
 
 /** The experience a source path is rendered to, or `null` if nothing claims it. */
 export function experienceOf(file) {
-  return EXPERIENCE_OF_SOURCE.find((e) => file.startsWith(e.prefix))?.key ?? null
+  return EXPERIENCE_OF_SOURCE.find((e) => e.prefixes.some((p) => file.startsWith(p)))?.key ?? null
 }
 
 const SHARED = new Map([
@@ -558,11 +704,12 @@ export function classify() {
   return { files, byDomain, byExperience, domainExperiences, unplaced, orphans, ambiguous }
 }
 
-export { DOMAINS, SHARED, SHARED_PREFIXES }
+export { DOMAINS, SHARED, SHARED_PREFIXES, NON_SOURCE }
 
 function render() {
   const { files, byDomain, byExperience, domainExperiences, unplaced, orphans, ambiguous } =
     classify()
+  const notSource = nonSourceFiles()
   const built = DOMAINS.filter((d) => !d.unbuilt)
   const unbuilt = DOMAINS.filter((d) => d.unbuilt)
 
@@ -573,12 +720,28 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and \`tests/architecture/ownership.test.mjs\` fails the build when one
 does not.
 
-**${files.length} files · ${built.length} domains with code · ${unbuilt.length} declared and unbuilt · ${SHARED.size + SHARED_PREFIXES.length} shared.**
+**${files.length} files · ${ROOTS.length} workspaces · ${built.length} domains with code · ${unbuilt.length} declared and unbuilt · ${SHARED.size + SHARED_PREFIXES.length} shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
 stops having boundaries: one unclaimed file at a time, each individually
 defensible.
+
+## Where the map looks
+
+Every workspace \`package.json\` declares, derived rather than listed. The list
+used to be the three literal paths \`apps/web/src\`, \`apps/system-studio/src\` and
+\`packages\` — and \`blueprints/\` and \`modules/\` were in none of them, so seven
+tracked TypeScript files including the module catalog itself had no owner while
+this document reported none unclaimed. A guard that enumerates where it looks is
+clean about everywhere it forgot.
+
+${ROOTS.map((r) => `- \`${r}/\``).join('\n')}
+
+A new application or package cannot avoid this list: \`npm ci\` refuses to install
+when \`package-lock.json\` does not name a declared workspace, so the declaration
+that puts a workspace into the build is the same one that puts it into this map,
+and every file in it is unclaimed until a domain claims it.
 
 ## Domains
 
@@ -633,6 +796,17 @@ ${d.what}
 ${d.note}`,
   )
   .join('\n\n')}
+
+## Not source
+
+Inside a workspace and shipped by none of it. Matched against the path relative
+to its workspace, so the rule reads the same for every one of them. This is an
+exclusion list on purpose — a subtree nobody named here is source, and source
+with no domain fails.
+
+| Rule | Files | Why |
+|---|---:|---|
+${NON_SOURCE.map((r) => `| \`${r.key}\` | ${notSource.filter((f) => r.matches(f.rest)).length} | ${r.why} |`).join('\n')}
 
 ## Shared
 

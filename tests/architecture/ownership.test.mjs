@@ -11,13 +11,94 @@
  * code was added that nobody decided the ownership of, which is how a codebase
  * stops having boundaries. One unclaimed file at a time, each individually
  * defensible.
+ *
+ * ── The half that was missing ───────────────────────────────────────────────
+ *
+ * "Every source file" was only ever true of the files the map looked at, and
+ * the map looked at three hard-coded paths. `blueprints/` and `modules/` are
+ * declared npm workspaces holding seven tracked TypeScript files — including
+ * the module catalog that decides what a tenant may switch on — and they were
+ * in none of the three. No domain owned them, and `docs/architecture/ownership.md`
+ * reported zero unclaimed files, because a guard that enumerates where it looks
+ * is clean about everywhere it forgot.
+ *
+ * The universe is therefore built HERE, from the workspaces `package.json`
+ * declares, and every file in it must be either governed by the map or excused
+ * by a named rule. That is the check the enumerated version could not perform:
+ * the map no longer gets to choose the question it is asked.
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 
-import { DOMAINS, SHARED, SHARED_PREFIXES, classify } from '../../tools/ownership-map.mjs'
+import {
+  DOMAINS,
+  NON_SOURCE,
+  SHARED,
+  SHARED_PREFIXES,
+  classify,
+  nonSourceFiles,
+} from '../../tools/ownership-map.mjs'
+
+const REPO = path.resolve(
+  path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, '$1'),
+  '../..',
+)
+
+/**
+ * The workspaces `package.json` declares, resolved HERE rather than imported
+ * from the map.
+ *
+ * The map resolves the same list to decide where to look, and asking it which
+ * workspaces exist and then checking that it covered those is a question that
+ * cannot come back "no". The whole defect this guards is a tree the map never
+ * looked at, so the list of trees has to come from somewhere the map does not
+ * choose. `tests/architecture/lockfile-knows-every-workspace.test.mjs` resolves
+ * it the same way against the lock file, for the same reason.
+ */
+function declaredWorkspaces() {
+  const { workspaces = [] } = JSON.parse(
+    fs.readFileSync(path.join(REPO, 'package.json'), 'utf8'),
+  )
+  const dirs = []
+  for (const pattern of workspaces) {
+    if (!pattern.endsWith('/*')) {
+      if (fs.existsSync(path.join(REPO, pattern, 'package.json'))) dirs.push(pattern)
+      continue
+    }
+    const parent = pattern.slice(0, -2)
+    if (!fs.existsSync(path.join(REPO, parent))) continue
+    for (const entry of fs.readdirSync(path.join(REPO, parent), { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const rel = `${parent}/${entry.name}`
+      if (fs.existsSync(path.join(REPO, rel, 'package.json'))) dirs.push(rel)
+    }
+  }
+  return dirs.sort()
+}
+
+/**
+ * Every file inside a declared workspace that could carry behaviour.
+ *
+ * Deliberately a WIDER extension set than the map's own. If the map narrows its
+ * filter — which is the other way it can stop looking at something — the files
+ * it dropped are still in this list and still have to be accounted for.
+ */
+function sourceShapedFilesInWorkspaces() {
+  return declaredWorkspaces().flatMap((ws) =>
+    execFileSync(
+      'git',
+      ['ls-files', '--cached', '--others', '--exclude-standard', `${ws}/**`],
+      { encoding: 'utf8', cwd: REPO },
+    )
+      .split('\n')
+      .filter(Boolean)
+      .filter((f) => /\.(ts|tsx|mts|cts|mjs|cjs|js|jsx|css|scss)$/.test(f))
+      .map((file) => ({ file, workspace: ws })),
+  )
+}
 
 test('every source file belongs to a domain', () => {
   const { orphans } = classify()
@@ -136,17 +217,129 @@ test('the committed map matches the code', () => {
   assert.match(result, /up to date/)
 })
 
-test('the map covers the app, the studio and the packages', () => {
-  // A map that silently stopped scanning a root would report zero orphans
-  // forever. Asserting the file count is non-trivial is what stops that being
-  // indistinguishable from success.
+test('the reader found the workspaces, so a clean result means something', () => {
+  // Every assertion below is of the form "nothing escaped". An empty universe
+  // satisfies all of them, and a map read from an empty glob reports perfect
+  // ownership. This is what separates the two.
+  const workspaces = declaredWorkspaces()
+  assert.ok(
+    workspaces.length >= 10,
+    `resolved ${workspaces.length} workspaces from package.json, expected at least 10 — the ` +
+      `globs stopped matching and "nothing escaped the map" would be vacuous`,
+  )
+
+  const universe = sourceShapedFilesInWorkspaces()
+  assert.ok(
+    universe.length > 1000,
+    `found ${universe.length} source-shaped files across the workspaces, expected over 1000 — ` +
+      `the reader is broken, and a broken reader reports every file as owned`,
+  )
+
+  const contributing = new Set(universe.map((u) => u.workspace))
+  assert.ok(
+    contributing.size >= 10,
+    `only ${contributing.size} of ${workspaces.length} workspaces contain any source at all: ` +
+      `${[...contributing].join(', ')}`,
+  )
+
   const { files } = classify()
   assert.ok(files.length > 200, `only ${files.length} files scanned — a root stopped being read`)
+})
 
-  for (const root of ['apps/web/src/', 'apps/system-studio/src/', 'packages/']) {
+test('no source inside a declared workspace escapes the map', () => {
+  // THE property, and the one the old version of this test could not express.
+  //
+  // It used to assert that at least one file was scanned under each of
+  // `apps/web/src/`, `apps/system-studio/src/` and `packages/` — the three
+  // paths the map had hard-coded as its roots. That is a floor under the places
+  // it already looked, and it says nothing about the places it did not: two
+  // whole npm workspaces (`blueprints/`, `modules/` — seven tracked TypeScript
+  // files, one of them the module catalog) sat outside all three, owned by
+  // nobody, while the generated document reported zero unclaimed files.
+  //
+  // So the question is asked from the other end. The universe is every
+  // source-shaped file in every declared workspace, read here; each one must be
+  // either governed by the map (and therefore owned by exactly one domain or
+  // explicitly shared, which the tests above enforce) or excused by a named
+  // NON_SOURCE rule. A tree the map stops looking at does not go quiet — it
+  // appears in this list, by name.
+  const accounted = new Set([
+    ...classify().files,
+    ...nonSourceFiles().map((f) => f.file),
+  ])
+
+  const escaped = sourceShapedFilesInWorkspaces()
+    .map((u) => u.file)
+    .filter((f) => !accounted.has(f))
+
+  assert.deepEqual(
+    escaped,
+    [],
+    `${escaped.length} source file(s) live inside a declared npm workspace and the ownership map
+` +
+      `neither classifies nor excuses them. The map is not looking there, so it reports them as
+` +
+      `neither owned nor unclaimed — it reports nothing at all. Either widen ROOTS/SOURCE_EXTENSIONS
+` +
+      `in tools/ownership-map.mjs so a domain has to claim them, or add a NON_SOURCE rule saying
+` +
+      `why they ship nothing:\n  ` + escaped.join('\n  '),
+  )
+})
+
+test('the map does not claim to govern anything outside a workspace', () => {
+  // The other direction. A root pointing at a tree that is not a declared
+  // workspace would inflate every count in the document and put files under a
+  // domain's name that `npm ci` never installs.
+  const inside = new Set(sourceShapedFilesInWorkspaces().map((u) => u.file))
+  const outside = classify().files.filter((f) => !inside.has(f))
+
+  assert.deepEqual(
+    outside,
+    [],
+    `the map governs ${outside.length} file(s) that are in no declared workspace:\n  ` +
+      outside.join('\n  '),
+  )
+})
+
+test('every NON_SOURCE rule still excuses something, and says why', () => {
+  // A rule matching nothing is either dead or has quietly stopped matching, and
+  // the second is indistinguishable from the first until a subtree it used to
+  // cover shows up unclaimed. Both are worth failing on while the list is three
+  // entries long.
+  const excused = nonSourceFiles()
+  assert.ok(excused.length > 0, 'no file is excused as non-source at all — the rules match nothing')
+
+  const dead = NON_SOURCE.filter((rule) => !excused.some((f) => rule.matches(f.rest))).map(
+    (r) => r.key,
+  )
+  assert.deepEqual(dead, [], `these NON_SOURCE rules excuse no file: ${dead.join(', ')}`)
+
+  for (const rule of NON_SOURCE) {
     assert.ok(
-      files.some((f) => f.startsWith(root)),
-      `no file scanned under ${root}`,
+      rule.why.length > 40,
+      `the ${rule.key} rule excuses files without saying why — a one-line reason is how this ` +
+        `becomes the easy way out of classifying a directory`,
     )
   }
+
+  // An excused file is excused BY a rule, never by falling through both lists.
+  for (const f of excused) {
+    assert.ok(
+      NON_SOURCE.some((rule) => rule.matches(f.rest)),
+      `${f.file} is reported as non-source and no rule matches it`,
+    )
+  }
+
+  // And a rule may only reach OUTSIDE a workspace's shipped source. Broadening
+  // one until it swallows `src/` is the one way an exclusion list can shrink
+  // the map without any of the checks above noticing: "every source file is
+  // owned" would go on being true, of fewer and fewer files.
+  const swallowed = excused.filter((f) => f.rest.startsWith('src/')).map((f) => f.file)
+  assert.deepEqual(
+    swallowed,
+    [],
+    `a NON_SOURCE rule excuses ${swallowed.length} file(s) under a workspace's src/, which is ` +
+      `shipped source and has to be owned:\n  ` + swallowed.join('\n  '),
+  )
 })
