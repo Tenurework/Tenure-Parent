@@ -1,467 +1,349 @@
 # NEXT SESSION — Tenure-Parent
 
-Rewritten 2026-08-13. Read this file **first**, in full, before any tool call.
-
-It replaces the 2026-08-07 version wholesale. Where a number appears here it was
-measured on 2026-08-13, not remembered.
+Rewritten 2026-08-21, replacing the 2026-08-13 version wholesale (its live
+branch `wip/studio-program-20260813` no longer exists on origin). Every number
+here was measured on 2026-08-21, not remembered.
 
 ---
 
-## 0. THE FIRST FIFTEEN MINUTES
+## 0. THE DIRECTIVE, BEFORE ANYTHING ELSE
 
-Do these in order. Do not skip to the interesting work.
+**Close 900 new requirements this session. Aggressively, systematically, and in
+parallel — with several branches upstream at once.**
+
+The last session closed **25**. That is far too slow, and the reason is not the
+quality bar. It is how the work was sequenced: one wave, stopped mid-run; then
+one PR at a time, each waiting ~25 minutes on CI before the next began; then
+four defect detours. Throughput was serialised where it did not need to be.
+
+**Most of the remaining items are genuinely easy.** 1,889 are `FAIL`, and a
+large share are FAIL only because nobody has looked at them — not because they
+need new systems. Read the requirement's own sentence before assuming it is
+hard; a great many are already satisfied by code that shipped and are waiting
+for somebody to record the evidence.
+
+### What to do differently — this is the whole point of this section
+
+| Last session | This session |
+|---|---|
+| ONE wave of 12 agents | SEVERAL waves, launched per family, continuously |
+| One PR at a time, serialised | Several branches upstream in parallel, one per family |
+| 145-file PR (too big to review) | Per-family PRs, each under 100 files |
+| Waited for CI before starting the next thing | Prepare the next branch while CI runs |
+| Refuters ran only after everything | Refute per slice, as each slice lands |
+
+**Parallel branches do not conflict if they are cut by FAMILY.** GE, PAY, IER,
+EXT, STUDIO, SIMON, CFG, CAT, INT and WRK each own their own ledger file and
+mostly their own source directories. Two agents in the same family collide on
+that family's ledger; two agents in different families do not. Cut the work that
+way and six PRs can be open at once.
+
+### Where the 1,889 actually are
+
+| Family | Open | Family | Open |
+|---|---|---|---|
+| GE | 781 | CFG | 79 |
+| PAY | 224 | INT | 65 |
+| IER | 219 | CAT | 59 |
+| EXT | 186 | PACK | 53 |
+| STUDIO | 167 | FIN / TTES | 34 each |
+| SIMON | 157 | HCM | 33 |
+| WRK | 88 | OPS | 32 |
+| | | ANL / PLN | 27 each |
+
+900 is reachable: GE alone holds 781.
+
+---
+
+## 1. WHERE THINGS STAND — measured 2026-08-21
+
+`main` is **`dd8f9eb`**, green, and deployed (Deploy Studio `32445179530`).
+Deployed == main == counted; there is no gap between the three.
+
+```
+2265 requirements
+  PASS               345   (15.2%)
+  FAIL             1,889
+  BLOCKED_EXTERNAL    30
+  NOT_APPLICABLE       1
+  unimported           0   <- keep this at zero
+```
+
+`unimported: 0` matters as much as the 345: no requirement is invisible. If a
+change drives it above zero, that is a wiring defect and it outranks new work.
+
+Five change-sets landed 2026-08-20/21, each green before the next started:
+
+| PR | Commit | What |
+|---|---|---|
+| #2 | `e23f5c8` | timeout-minutes on all CI jobs; the `--with-deps` apt hang that burned 6h |
+| #3 | `6d8e6f7` | concurrency group; killed a permanent 4-skip yellow; guarded a psql glob |
+| #4 | `c5ecf80` | 25 requirements; 4 silent defects |
+| #5 | `4661fc8` | nav 10 sections to 8; command palette 3 to 14 destinations |
+| #6 | `dd8f9eb` | a locale-dependent sort that made main red |
+
+---
+
+## 2. THE FIRST FIFTEEN MINUTES
 
 ```bash
 cd /c/Users/satvi/Tenure-Parent
-git remote -v                                   # origin = Tenurework/Tenure-Parent. NEVER live.
-git fetch origin && git status -sb               # behind? another author has been working
-gh run list --branch main --limit 4              # red on main is the ONLY work until it is green
-npx tsc --noEmit -p apps/system-studio/tsconfig.json && npm run type-check
+git remote -v                       # origin = Tenurework/Tenure-Parent. NEVER live.
+git fetch origin && git status -sb
+gh run list --branch main --limit 4  # red on main outranks everything below
+node tools/document-graph.mjs        # current PASS/FAIL, and unimported must be 0
 ```
 
-**A red `main` outranks everything in this document.** It is also usually cheap —
-five of the last six reds were a generated artefact, not a defect. §5 tells you
-which.
-
-Then decide between two modes:
-
-| If | Then |
-|---|---|
-| `wip/studio-program-20260813` still exists on origin | §1 — finish it before starting anything new |
-| It has been merged or abandoned | §3 — pick the next domain and launch |
+A red `main` outranks this entire document. It is usually cheap — most reds are
+a generated artefact, not a defect. Run `npm run generate` first.
 
 ---
 
-## 1. WHERE THE WORK ACTUALLY IS RIGHT NOW
+## 3. THE GATE — do not shorten it
 
-`main` is `a2aa1b6`, clean, everything pushed.
-
-**`origin/wip/studio-program-20260813` is the live front.** 88 files, stopped
-mid-flight when the machine had to close — deliberately stopped, not crashed.
-
-Landed on it and PLAUSIBLE but **unrefuted**:
-
-- All seven previously-missing AWS readers: `ses`, `sqs`, `lambda`, `iam`,
-  `budgets`, `aws-health`, `eventbridge`. Terraform *provisions* SES and SQS, so
-  before this the engine created resources it could not see.
-- The Material 3 layer: token ramp, and the primitives `Surface`, `Card`,
-  `Button`, `Chip`, `Badge`, `DataTable`, `EmptyState`.
-- Two design documents: `docs/architecture/studio-design-system.md` and
-  `studio-information-architecture.md`.
-
-**Not done, and why the branch is a branch:** the eleven route agents were
-mid-migration, so some pages consume the primitives and some do not. No refuter
-has run over any of it. Treat every claim on that branch as unverified.
-
-Resume it — the nine reported agents replay from cache, so this is cheap:
-
-```
-Workflow({scriptPath: 'tools/loop/studio-program.mjs',
-          resumeFromRunId: 'wf_206f4cc9-58e'})
-```
-
-The script is `tools/loop/studio-program.mjs`; its phases and file-ownership
-split are documented in the file itself. **Ownership is what makes 18 concurrent
-agents safe** — one file each, named in the prompt. Do not widen it.
-
----
-
-## 2. THE THREE THINGS THE OPERATOR ASKED FOR, AND WHERE EACH STANDS
-
-### 2.0 Where the AWS control-plane work is (added 2026-08-14)
-
-All of it is under `apps/system-studio/`, on branch `studio-program`. The service
-readers are committed; the five new surfaces and the aggregation-module edits
-were still uncommitted in the working tree when this was measured — agents do not
-commit, the orchestrator does.
-
-```
-src/lib/aws/            the read plane — 50 modules, excluding tests. read.ts
-                        (AwsRead<T>), capabilities.ts, client.ts, throttle.ts and
-                        identity.ts are the spine; the per-service readers hang
-                        off them; inventory, posture, health, drift, findings,
-                        topology, tags, console-link and retained aggregate them.
-                        mutate.ts is the ONLY mutation site and was not touched.
-src/app/platform/       10 operator routes. estate, cost, security, audit and
-                        health existed; compute, data, identity, messaging and
-                        network are new this programme and are NOT yet linked
-                        from the console navigation.
-e2e/                    Playwright. aws-unknown-is-not-absent.spec.ts is the
-                        STUDIO-000-007 proof; five new *-surface / *-page-logic
-                        specs beside the new routes.
-```
-
-Studio unit tests run through **apps/web's jest**, not a jest of their own:
-`npm run test --workspace apps/web -- --ci <path>`. `tests/**` at the repository
-root is a third runner (`npm run test:platform`, plain `node --test`).
-`apps/system-studio` must never import a Prisma client —
-`tests/security/operator-plane-content.test.mjs` asserts it.
-
-The accounting for all of it — which requirement each piece actually satisfies,
-and which it does not — is the section headed **"Requirement reconciliation — the
-AWS read/aggregation programme, 2026-08-14"** in
-`docs/implementation/system-studio-aws-control-plane-execution-ledger.md`.
-
-### 2.1 The honest denominator
-
-Verbatim, because the wording matters more than a paraphrase:
-
-1. **"Wiring of AWS to Tenure global system is not at all fully completed
-   (this is critical)."** The seven readers above close the measured gap: 20 SDK
-   clients were wired, 7 services had none. Still open — mutations beyond the
-   reversible set, per-tenant cost attribution end to end, and anything needing
-   an AWS Organization the estate does not have.
-2. **"The UIUX … is cluttered and looks like a construction site … put all these
-   mess in one last tab."** The IA document exists. The *navigation* is not yet
-   restructured and no route has been moved behind a final Diagnostics tab. This
-   is the least-done of the three and the most visible.
-3. **"Material design 3 … has to be implemented across for Tenure Studio only."**
-   Tenant-side UI/UX is already defined and is NOT in scope. Foundation is in,
-   adoption is partial.
-
----
-
-## 3. THE HONEST DENOMINATOR
-
-Regenerate it; never quote from memory:
+`type-check` + `test:platform` IS NOT THE GATE. That subset let three failures
+reach CI on 2026-08-20, and then four more defects through on the next push.
 
 ```bash
-node tools/loop/next-batch.mjs | head -1
-grep -c 'Status: PASS' docs/implementation/*execution-ledger.md | sort -t: -k2 -rn
+npm run generate                     # ALWAYS before test:platform
+npm run type-check                   # 0 errors
+npm run lint                         # CLAUDE.md names it; the CI job runs it
+cd apps/web && npx jest --ci         # 373/374 (see below)
+npm run test:platform                # 1241/1241
 ```
 
-| Metric | 2026-08-07, start | 2026-08-07, after that session | 2026-08-14, measured |
-|---|---|---|---|
-| Requirements the QUEUE could see | **1,219** | **2,046** | **2,265** |
-| Decided | 133 | **145** | **248** |
-| Remaining | — | — | **2,017** |
-| `Status: PASS` lines, all ledgers | — | — | **234** |
-| Ledgers with ZERO PASS | 13 of 15 | **12 of 15** | **3 of 16** |
+`npm run lint` is in CLAUDE.md's verify sequence and was omitted from the gate
+actually run last session. The CI job "Lint . Type Check . Test . Build" runs
+it, so a lint error is a red found late instead of early. Run it.
 
-The 2026-08-14 column is the verbatim output of the two commands above, run
-against the tree with the AWS programme's uncommitted work in place:
-`248/2265 decided · 2017 remaining`. Per-ledger `Status: PASS` counts, same run:
-`global-engine 120 · payments-treasury 39 · system-studio 18 · erp-pack-factory
-17 · tenant-experience 16 · universal-work-graph 12 · connection-composer 4 ·
-declarative-configurator 3 · financial-management 1 · identity-eligibility-
-entitlement 1 · operations-cloud 1 · people-hr-workforce 1 · planning-epm 1 ·
-analytics-reporting 0 · integration-ecosystem 0 · simon-ose-absorption 0`.
+`npm run verify` chains these but exceeds a 10-minute tool cap — run the pieces.
 
-**234 PASS lines and 248 decided are not the same measurement and must not be
-reconciled to each other.** `decided` counts requirement ids the queue resolved
-to `PASS`, `BLOCKED_EXTERNAL` or `NOT_APPLICABLE`; the `grep` counts the string
-`Status: PASS`, which some rows carry with a qualifying clause after it.
+**Known local-only failure:** `apps/web/src/lib/audit-append-only.test.ts` fails
+on this Windows host and PASSES in CI. It proves driver pass-through by
+expecting a rejection when `DATABASE_URL` is unset; this host resolves instead.
+**Do not "fix" it** — calibrating a test to this machine is the defect that put
+two specs green here and red in CI.
 
-**The AWS read/aggregation programme moved the decided count by zero.** It
-delivered twenty-four service readers, five operator surfaces and eight
-aggregation modules — real code, reached by real callers — and every one of them
-was filed under an id that was either already decided (`STUDIO-070-004`,
-`STUDIO-080-008`) or does not exist (172 invented ids in agent results, and five
-invented headings written into the Studio ledger itself:
-`STUDIO-070-011`, `STUDIO-080-009`, `STUDIO-080-010`, `STUDIO-DATA-001`,
-`STUDIO-IDENTITY-001`). The reconciliation — every one of those mapped to the
-requirement its evidence actually bears on, with a status — is the section headed
-"Requirement reconciliation — the AWS read/aggregation programme, 2026-08-14" in
-`docs/implementation/system-studio-aws-control-plane-execution-ledger.md`.
-**The only source of requirement ids is `node tools/loop/next-batch.mjs --size
-2100 --json`, plus the ids already carrying a ledger row.** An id in neither does
-not exist.
-
-**The denominator moved because the queue was blind, not because work was lost.**
-`next-batch.mjs` named four prompts and three ledgers by hand; twenty-three
-authorities and fifteen ledgers exist, so 755 requirements — every zero-PASS
-domain — were not in the queue at all. It now derives both from
-`tools/document-graph.mjs`, which discovers them from the filesystem. Adding a
-Bible or a ledger needs no edit there.
-
-Two more parsing defects fell out of that consolidation, both of which the queue
-had already fixed in its own copy while the graph still had them: a bolded
-`Status: **BLOCKED_EXTERNAL**` read as `FAIL` (eleven entries), and with the bold
-readable, `GE-042-007` was ticked done while blocked — a false PASS among the 119.
-
-Still at zero (2026-08-14, regenerated — the 2026-08-07 list of twelve is
-superseded; nine of those twelve have since taken their first PASS):
-
-```
-analytics-reporting    integration-ecosystem    simon-ose-absorption
-```
-
-**Total** requirements per domain — the denominator each PASS count sits in:
-
-```
-GE 781   PAY 224   IER 219   EXT 186   STUDIO 167   SIMON 157
-WRK 88   CFG 79    INT 65    CAT 59    PACK 53      FIN 34
-TTES 34  HCM 33    OPS 32    ANL 27    PLN 27
-```
-
-**`FAIL` is the import default, not a verdict.** 1,231 of the 1,449 ledger rows
-read `Status: FAIL` with `Reason: imported from <bible>; not yet implemented`.
-So a FAIL tells you nothing about whether anything was ever attempted — read the
-Reason, and if it still says "imported", treat the requirement as untouched.
-Anything genuinely attempted and refuted names the refutation in its Reason.
-
-`IER` (Identity, Eligibility, Entitlement, Roster, Access Continuity) arrived by
-upload on 2026-08-08 and has **zero** decided. It carries REVIEW-FINDINGS **P0
-#4**: the effective-permission SQL grants full authority to SUSPENDED and LEFT
-members and disabled principals, and `DenyReason.MEMBERSHIP_SUSPENDED` ships with
-no code path that can produce it.
+The Studio Playwright suite cannot run locally (needs DynamoDB Local; Docker is
+not running). Say so rather than implying it was tested.
 
 ---
 
-## 4. WHAT A RUN ACTUALLY COSTS — the binding constraint is the quota window
+## 4. LANDMINES — each of these has already cost a red
 
-| Measured | Value |
-|---|---|
-| One requirement, implement + refute | **~145k tokens** |
-| A 16-agent cluster run, end to end | **~4M tokens, ~90 min** |
-| Confirmed on 2026-08-07/08 | **11**, against ~45 claimed |
+1. **The drift ratchets.** `tests/security/workflow-drift.test.mjs` pairs
+   `assert.ok(<=)` with `assert.equal(==)` on `UNPINNED_TRUSTED = 42` and
+   `WORKFLOWS_WITHOUT_PERMISSIONS = 8`. Pinning an action, adding a
+   `permissions:` block, or deleting a workflow reds CI unless the constant is
+   lowered IN THE SAME COMMIT. Do NOT loosen them to `assert.ok` only — the
+   exact-equality is deliberate, and an audit lane already proposed weakening it.
 
-**Six runs have been killed by a limit.** On 2026-08-08 two runs died on the
-**weekly** cap and returned 5.6M tokens for zero requirements. Before launching,
-know which window you are in.
+2. **ADR-0005 disarm guards.** Ten workflows carry
+   `if: github.repository == 'Tenurework/Tenure'` and always skip here, enforced
+   by `production-workflows-disarmed.test.mjs`. Flipping them arms five
+   destructive AWS workflows against the live pilot. "Never ran" is NOT dead for
+   break-glass tooling (db-recovery, rotate-auth-secret, seed-reference-data).
 
-Rules that follow, and they are not negotiable:
+3. **Generated artefacts.** Many docs assert they match their generator's
+   current output. Editing `package.json` can stale a doc that describes the
+   build. `npm run generate` after every change, before `test:platform`.
 
-1. **Never more than 3 cluster workflows concurrently.** The 13-workflow launch
-   produced 23.7M tokens and no code.
-2. **The survey persists.** Surveyors write `tools/loop/surveyed-<domain>-<n>.json`
-   before implementation starts, and a cheap agent replays them next run. A
-   killed run now costs the implement phase only. `freshSurvey: true` re-buys it.
-3. **`resumeFromRunId` is same-session only** for cluster runs from a dead
-   process — but the workflow *script* plus its run id do replay within a
-   session. Check for a journal before assuming anything is recoverable:
-   `find "$LOCALAPPDATA/Temp/claude" -name journal.jsonl`.
-4. **Claimed is not confirmed.** Every PASS needs `refuted: false` from an
-   independent refuter. Reclassify anything else to FAIL with the reason.
+4. **`localeCompare` in anything deterministic.** It answers by the runtime's
+   collation and differs between machines. On 2026-08-21 it made main red by
+   deduplicating to a different surviving record than the PR runner did. Use
+   code-point comparison for any order a test, cache key or prompt depends on;
+   `localeCompare` only where a human reads the result. See `byCodePoint` in
+   `apps/web/src/lib/relay/evidence-assembly.ts`.
 
----
+5. **Never write a raw NUL into source.** Git and ripgrep classify the file as
+   binary and it stops being reviewable. Use the `\u0000` escape.
 
-## 5. THE TEN CHECKS — CI runs ten and the old handoff listed eight
-
-```bash
-npm run type-check                                  # 0
-npm run studio:type-check                           # 0
-npm run lint                                        # 0 errors (warnings pre-exist)
-npm run test --workspace apps/web -- --ci           # 4610+, 207 suites
-npm run test:platform                               # 389 pass, 0 fail
-npm run test:isolation --workspace apps/web         # 208 pass — NOT in the old list
-npm ci --dry-run                                    # resolves — NOT in the old list
-npm run build                                       # apps/web
-npm run build --workspace apps/system-studio
-# plus BOTH Playwright suites — see §7
-```
-
-### 5.1 Two traps that have cost five red builds between them
-
-**The guards only see TRACKED files.** `test:platform` read 307/307 before
-`git add` and 303/307 after, with no code changing: the architecture and security
-guards enumerate through `git ls-files --cached`. **Stage first, then verify.**
-
-**Generated artefacts must not depend on your working tree or your OS.** Five
-reds came from this one idea wearing different clothes:
-
-- sorting **native** paths (`\` 0x5C vs `/` 0x2F order differently);
-- unsorted `readdirSync` (NTFS sorts, ext4 does not);
-- hashing raw **CRLF** bytes, so a digest described the checkout not the document;
-- the document walk picking up Playwright's `error-context.md` files;
-- and — 2026-08-13, mine — **running `npm run generate` while 40 agent files sat
-  uncommitted**, so the artefacts described a tree only that machine had.
-
-If `--check` says stale in CI and current locally, it is one of these. Reproduce
-it properly rather than guessing twice:
-
-```bash
-cd /tmp && rm -rf gcheck && git clone -q --depth 1 file://C:/Users/satvi/Tenure-Parent gcheck
-cd gcheck && node tools/document-graph.mjs && git diff --stat
-```
+6. **Agents must not share /tmp backup paths.** In the 27-refuter wave, parallel
+   agents clobbered each other's mutation backups; one only noticed via
+   `git diff`. Give each agent a private path.
 
 ---
 
-## 6. THE RULES THAT WERE BOUGHT WITH RED BUILDS
+## 5. THE QUALITY BAR — and its one known blind spot
 
-Put these in every agent prompt. Each names something that actually shipped.
+A row reaches `PASS` only with: production code by path, a caller that reaches
+it, a test with real counts, and a mutation applied and OBSERVED to fail. Then
+an independent refuter re-runs the mutation and re-reads the requirement's own
+sentence in its authority.
 
-1. **A guard that cannot fail is worse than no guard.** FIVE were found switched
-   off: `if (false && verdict)` around the destructive-AWS-mutation gate,
-   `if (false && !isPaymentMode(...))` around money-mode validation, `|| true`
-   making a loop skip every key, `const refusals = [] // MUTATION` shipped in
-   `signin/page.tsx`, and `false && CREDENTIAL.test(write)` making a credential
-   sweep return empty for every file. **All five read green.**
-2. **Never fabricate an approval.** An agent set `GRAPH_CALENDAR_REVIEW` to
-   `APPROVED` with invented verification dates, in the file whose own comment
-   argued that was the only untrue state. §0.3 forbids treating any agent or test
-   result as human approval.
-3. **Widening a type breaks consumers silently.** An optional field a caller
-   omits is invisible to `tsc`. Grep every construction site and name them.
-4. **A fixture must never delete a row it did not create.** One claimed the
-   pilot's slug and deleted the seeded institution and all 26 of its clubs.
-5. **A jest mock of `@/lib/db` must implement BOTH `$transaction` forms** — array
-   AND callback — because `recordAuditEvent` appends the audit chain through the
-   callback form. Re-state it inside `beforeEach`: `jest.clearAllMocks()` wipes
-   implementations, not just call counts.
-6. **`seed.mjs` does not reset the database.** It is upsert-based and deletes
-   four things, so seats accumulate across "fresh" seeds — 235 → 250 → 265. Phantom
-   failures come from this. Create a NEW database, do not re-seed.
-7. **apps/web targets ES2017.** `/…/s` is a compile error; use `[\s\S]*`.
-8. **A new workspace package must reach `package-lock.json`** or `npm ci` kills
-   every CI job on its first step. `tests/architecture/lockfile-knows-every-workspace.test.mjs`
-   now catches it locally.
-9. **New audit writes go through `recordAuditEvent`.** `RAW_WRITE_CEILING` in
-   `tests/security/audit-writes.test.mjs` is **32** and may only FALL. Same for
-   every other ratchet — `UNAUTHORIZED_MUTATORS`, `UNCLAIMED`, `SHARED.size`,
-   `DATABASE_EXEMPT.size`. Raising one to make a build green defeats its purpose.
+This is not bureaucracy — it is the only reason the number means anything. Two
+waves measured: **13 upheld / 14 overturned**, and **12 upheld / 1 overturned**.
+Recording unrefuted claims once made the count say 42 where 24 were true.
+
+**The blind spot, found the hard way:** `GE-092-004` was recorded PASS, cleared
+its refuter's explicit "would this survive a different machine?" check, and
+still carried the locale-dependent sort that reddened main. Mutation proof shows
+a test CAN fail; it does not show the test fails the same way EVERYWHERE. When a
+test asserts an order, a format or a measured number, ask what varies by host.
+
+**Speed and this bar are not in tension.** The bar costs one refuter per claim.
+What cost the last session its throughput was serialisation, not scrutiny.
 
 ---
 
-## 7. RUNNING THE TWO PLAYWRIGHT SUITES
+## 6. THE HARNESS
 
-They are not optional. They are the only checks that caught either total outage
-in the PACK run, and they caught a wedged route boundary, an unnamed form field
-and a credential shown to a club member since.
+`tools/loop/big-family-fanout.mjs` is the wave script — slices with refuters per
+slice. Its rules were paid for in failures and should not be relaxed:
 
-**apps/web** — needs a genuinely fresh database (see rule 6):
+- Agents NEVER commit, push, or `git add`. The orchestrator commits.
+- Agents NEVER write a ledger. They RETURN rows; only a CONFIRMED claim is
+  written. (Eighteen claims once wrote PASS before being overturned.)
+- NO SCHEMA CHANGES. Six unverified migrations had to be quarantined.
+- Close TWO to SIX properly rather than fifteen shallowly.
+- Prefer work provable without a build — `npm run studio:build` is ~350s.
 
-```bash
-docker run -d --name tenure-e2e-pg -e POSTGRES_USER=tenure -e POSTGRES_PASSWORD=tenure \
-  -e POSTGRES_DB=tenure -p 5466:5432 postgres:16
-cd apps/web && export DATABASE_URL="postgresql://tenure:tenure@localhost:5466/tenure"
-npx prisma migrate deploy && node scripts/seed.mjs
-# env: AUTH_SECRET AUTH_TRUST_HOST AUTH_DEV_LOGIN ALLOW_DEV_LOGIN_IN_PRODUCTION
-#      DEV_LOGIN_PASSPHRASE TENANCY_ENFORCE NEXTAUTH_URL JOB_SECRET AWS_REGION IMAGE_TAG
-npx playwright test          # 182 passed
-```
-
-**Studio** — has NO `webServer`; you start it yourself. Extract CI's env rather
-than typing it, because two 27-minute runs were wasted on a hand-typed value:
-
-```bash
-sed -n '/name: Studio · Playwright/,/steps:/p' .github/workflows/ci.yml \
-  | grep -E "^      [A-Z_]+:" > /tmp/studio-env.raw     # then export them
-```
-
-Two facts that will otherwise cost you a run each:
-
-- `PLATFORM_OPERATORS` is **`email:role`**. A bare address is REFUSED, never
-  defaulted — a role default would make everybody an administrator.
-- `AWS_ACCOUNT_ID` and `AWS_PARTITION` must be set or the console refuses to
-  boot. That is deliberate: it will not invent an estate. `FleetMisconfigured`
-  in `/tmp/studio.log` means the env was not sourced.
+Recover a stopped wave from `journal.jsonl` in the workflow transcript dir: each
+`{"type":"result"}` line holds an agent's full return value including its
+`ledger_row`. That is how the last session recovered 40 claims after a kill.
 
 ---
 
-## 8. PRODUCTION ACCESS, AND WHAT IS STILL OPEN ON IT
+## 7. STUDIO UI/UX — finish the visual language to admin.google.com
 
-Access to the deployment engine is **one person**:
-`satvik@Tenurework.com:platform-super-admin`.
+**Approved direction:** take admin.google.com's *structure* — shell anatomy,
+navigation tree and nesting, panels, icon vocabulary, workflows, density,
+easibility. Keep Tenure's *palette*. The content is Tenure's own IP and the
+Studio's real functions. Do NOT copy Google's pure white and Google Blue; the
+off-white / muted-grey burn-in rule stands, with Tenure green `#198052` as the
+SINGLE accent (selected nav item, primary button, focus ring, active tab) and
+never flooding surfaces, page backgrounds or table headers.
 
-Auth is **Cognito** (`STUDIO_AUTH_MODE=cognito`), not the old shared secret.
+### Done (PR #5)
 
-An audit on 2026-08-13 found the migration had **reissued the shared secret as a
-permanent Cognito password** — `password` rather than `temporary_password`, with
-`message_action = "SUPPRESS"` so no reset was ever forced, `mfa_configuration`
-`OPTIONAL`, and the same value still shipped to the task and printed by an
-output. Anyone holding it plus an allowlisted address was platform-super-admin.
-Fixed in `2b7274c`: `temporary_password`, MFA `ON`, secret off the ECS task.
+Nav 10 groups to 8 (Identity and Data folded into AWS); command palette 3 to 14
+destinations. Zero URL changes.
 
-**Still open, and it needs the account owner:**
+### Next, and mostly specified already
 
-- The **first sign-in after the next deploy** forces a new password and TOTP
-  enrolment. There is a **seven-day clock** (`temporary_password_validity_days`).
-- The old value should be **rotated** afterwards — it is still in Secrets Manager
-  and in the repository secret.
+Full specs are committed under **`docs/handoff/specs/`**. Read them before
+writing anything — they were measured, not estimated.
 
----
+- **`studio-tokens-delta.md`** — THE IMPORTANT ONE. The token system ALREADY
+  EXISTS: `apps/system-studio/src/app/globals.css` is 4,028 lines of complete
+  MD3 two-layer tokens across four themes, accent already drawn from
+  `--tenure-forest-*`, with `md3-tokens-logic.spec.ts` auditing ~100 pairs.
+  **Do not write a second palette.** The work is a delta:
 
-## 9. OPEN DEFECTS, PRECISE AND VERIFIED
+  - **DEFECT 1, LIVE, ships today.** `.md3-button:focus-visible` uses
+    `--md-sys-color-primary`. Inside `.md3-surface[data-container="inverse"]`
+    the button LABEL was re-pointed to `inverse-primary` (the comment at
+    `globals.css:2860` names the reason) but **the focus ring was not**.
+    `Snackbar.tsx:66` and `ToastRegion.tsx:89` both render inverse and both take
+    an action button, so a keyboard operator sees a ring at **1.70:1 (light) /
+    1.29:1 (dark)** against WCAG 2.2 AA 1.4.11's 3:1 floor. The audit misses it
+    because no pair names `primary` on `inverse-surface`. The fix measures
+    8.68 / 5.55. Add the pair to `PAIRS` so it cannot regress.
+  - **No focus-ring token exists.** The ring is spelled literally at 17 sites
+    across five files with FIVE different offsets. Add
+    `--md-sys-color-focus-ring`, `--md-sys-color-focus-ring-inverse`,
+    `--md-sys-focus-ring-width`, `--md-sys-focus-ring-offset`.
+  - **DEFECTS 2 and 3, latent.** Baked state-layer alphas disagree with the
+    opacity tokens the audit composites at; `--md-sys-state-pressed` is
+    referenced by zero rules. Delete it and assert baked alpha equals the
+    opacity token. Add `on-surface-variant` to `INTERACTIVE` before a hoverable
+    row renders secondary text on `surface-container-highest`.
 
-| Where | What |
-|---|---|
-| `apps/system-studio/src/app/platform/estate/estate-coverage.ts:422` | **The coverage table makes a false negative claim, and it is the claim the page exists to make.** It decides "has a reader" with `capabilitiesFor("estate")` — capabilities whose `surface` is `estate`, which is 42 of the 114 declared. The other 72 sit on `posture`, `health`, `security`, `retention`, `identity`, `cost` and `organization`. So the deployed page tells an operator `cloudwatch — no reader in this build … no capability in this build names cloudwatch at all — neither a reader nor an IAM grant`, and the same for `cognito-idp` and `iam`, all three of which have readers and grants. Read off the CI snapshot at `test-results/layout-at-320px-platform-e-908aa-…/error-context.md`. The row's SENTENCE claims a repository-wide absence that the CHECK never tested. Fix the existence question to consider every capability, and keep the surface only for "which page shows it" — then the `tests/architecture/every-provisioned-service-has-a-reader.test.mjs` ratchet and this page will agree, which today they do not. |
-| `apps/system-studio/src/app/platform/*/`, all seven surfaces, at 320px | **The DEGRADED path overlaps, and CI cannot see it.** Run the Studio with every AWS endpoint unreachable (`AWS_ENDPOINT_URL=http://127.0.0.1:1 AWS_MAX_ATTEMPTS=1`, which is also how to make it boot at all without DynamoDB) and `layout.spec.ts -g "at 320px"` fails "no text overlaps other text" on `/`, `/platform`, `/platform/cost`, `/platform/audit`, `/platform/estate`, `/platform/health` and `/platform/security` — 7 of 19. CI passes them because its DynamoDB is seeded and its AWS calls fail FAST with `InvalidClientTokenId`, so those pages render data instead of a column of `UnknownState` panels carrying long IAM statements. A fresh install has no data and no grants, so the degraded path is the FIRST thing a new operator sees, and it is the one nothing tests. |
-| REVIEW-FINDINGS P0 #4 | Effective-permission SQL grants authority to SUSPENDED/LEFT members and disabled principals. **IER's**, and unstarted. |
-| REVIEW-FINDINGS P1 #15 | The session carries a membership list — an authorization claim in a token. `getUserContext` already loads memberships and is `React.cache()`d, so `sub` alone suffices. |
-| REVIEW-FINDINGS P2 #19 | `finance.roleNamePatterns` is a tenant-writable regex deciding `canManageFinance`, `sensitivity: "standard"`, no `requiresCapability`, guard regex excludes nothing. **CFG's.** Take substrings, not regex. |
-| TTES-020-004 | FAIL. `visual-baselines.spec.ts` withdrawn — the machinery is right, the PNGs have never existed. A `workflow_dispatch` workflow generates them; a human commits them. |
-| `apps/system-studio/.next-audit110` | An audit artefact directory sitting in `tsconfig.json`'s `include`. Probably wants deleting. |
+- **`admin-console-reference.md`** — the reference. Its IA is MEASURED: 2,191
+  literal `Menu > A > B > C` strings harvested from 1,890 official help
+  articles. Its pixel values are Material 3's published tokens, NOT measurements
+  of Google's console — `admin.google.com` 302s to a bot check and could not be
+  fetched, and `m3.material.io` is an SPA with no fetchable body. Honour that
+  distinction; do not tell anyone a number is "what admin.google.com does" on
+  the strength of the M3 sections.
+  Shell facts worth building to: persistent collapsible drawer (not a rail),
+  hamburger top-left, **in-place accordion disclosure, not flyout**, a Pinned
+  section capped at 5, per-category icons, unified top-bar search whose results
+  resolve to NAV COORDINATES rather than just pages.
+  NOTE: this repo deliberately keeps palette pins UNBOUNDED
+  (`commands-logic.spec.ts`: "an operator who pins twenty things meant to").
+  Do not copy Google's cap of 5 over that decision.
 
-**`docs/architecture/REVIEW-FINDINGS.md` overrides `PLATFORM-ARCHITECTURE.md`
-wherever they disagree.** It is 73 lines and names 11 P0 defects. Read it.
+- **`studio-routing-ia.md`** — Phase 2 is specified but NOT recommended: it
+  moves 17 of 18 routes and touches 40 e2e specs, 4 guards and 4 docs, and
+  `next.config.ts` declares no `redirects()`, so a moved URL is a hard 404. Do
+  not start it without redirects.
+  Genuinely missing operator surface: an **approval inbox** (Bible "Changes").
+  Lifecycle advances require approvals today with no queue, plan diff or inbox.
 
----
-
-## 10. HOW TO GO FAST WITHOUT GOING BACKWARDS
-
-The operator's standing instruction is aggressive parallelism. The way to honour
-it that has actually worked:
-
-- **Fan out by FILE, not by feature.** One agent per AWS service, one per route,
-  each owning a named file set stated in its prompt. 18 concurrent agents ran
-  clean this way; file-ownership isolation by *package* previously made every
-  requirement end blocked at the `apps/web` boundary.
-- **Sequence the foundation.** A page cannot adopt a token layer that does not
-  exist. Ground phase first (tokens, IA, capability registry), then the fan-out.
-- **Check live, do not wait for the completion notification.** Poll the workflow
-  journal and re-run `studio:type-check` while it runs. Expect transient errors —
-  twice, an error was fixed by the agent that owned the file before intervention
-  was needed. Fix what is stable, leave what is mid-write.
-- **Push every green increment.** Do not save up. And after any bulk change:
-  `git add -A && git diff --cached --name-status --diff-filter=D` — empty is the
-  expected result. `packages/finops` was once deleted by a `git add -A` nobody
-  inspected.
-
----
-
-## 11. THE STANDARD — every claim
-
-- **Real code reached by a real production caller.** Name the caller or return
-  blocked. A type nothing calls is dead code; dead code with a comment claiming
-  otherwise is worse than nothing.
-- **Mutation-prove every test.** Apply, run, confirm it FAILS, restore, confirm
-  it passes. Report the mutation and both results.
-- **A stand-in that returns a canned value proves nothing.** For AWS that means
-  it must distinguish AccessDenied, a throttle, an empty-but-successful list and
-  a populated one — and the surface must say something different for each.
-- **If a comment or evidence string is false, fix the CLAIM, not the test.**
-- **Do not mark PASS what is not true.** An honest FAIL outranks a false PASS,
-  and `BLOCKED_EXTERNAL` must name the commands that would unblock it.
-- **Report faithfully.** If tests fail, say so with the output. If a step was
-  skipped, say that.
-
+- **`studio-shell-audit.md`** — what exists today, file by file.
 
 ---
 
-## 12. WHAT THE 2026-08-14 RECONCILIATION FOUND
+## 8. LIVE AWS IN THE STUDIO — a wiring job, not a build
 
-Written by the agent that mapped the AWS programme's delivered code onto real
-requirement ids. It is here rather than in §7 — where the merge originally put
-it — because it is an open-defects table, and §7 is how to run Playwright.
+The machinery is COMPLETE: `/api/aws/[surface]`, the `x-aws-refresh-ms` header,
+`lib/aws/refresh.ts` (the polling loop) and `components/LiveRegion.tsx`. It is
+wired to **2 of 11 platform pages** and **11 of ~45 readers** in
+`apps/system-studio/src/lib/aws/`.
 
-Every row is a claim about the tree that a reader can check by opening the
-path. The five "no production caller" rows are the ones that matter most: code
-that is real, tested, and reached by nothing, which is the exact shape a
-refuter is meant to catch and a ledger is meant to refuse.
+Pages are `force-dynamic`, so they are live AT LOAD and frozen after. Register
+the remaining readers as live surfaces in `SURFACES` (`lib/aws/result.ts` —
+`capability: null` means NOT live) and add `LiveRegion` per page. That is what
+makes an AWS change appear without a reload.
 
-| ID | Finding | Location |
-|---|---|---|
-| GE-053-006 | `authorizationService` has **no production caller**. Cache invalidation is correct and unreachable. `decide()` **is** wired (3 sites) — uncached, which is the safer design. Do not add a cache to tick a box. | `packages/authorization/src/service.ts` |
-| GE-063-004 | Audit chain **never continuous in production**. `record.ts:353` gates `_sequence`/`_previousHash` behind `if (sequence !== null)` and neither writer passes them. Only a per-row hash is live — the exact control the code says a row-editing attacker defeats. `verify.ts`/`retention.ts` (565 lines) have one caller: their own test. | `apps/web/src/lib/admin/guard.ts:70`, `apps/web/src/lib/provisioning/reconcile.ts:368` |
-| GE-063-001 | 32 of 38 audit writes bypass the validated builder. `audit-record.ts` (~460 lines carrying seat, change digest, prior hash) has zero importers. | `apps/web/src/lib/audit-record.ts` |
-| — | `Institution.serving` collapses every refusal into one bit. Bible §6.2: *"A single `is_active` boolean is prohibited."* REVIEW-FINDINGS §21 agrees. Needs `servingState` beside it: structured reason for a member, plain 404 for a non-member. | `apps/web/src/lib/tenant-scope.ts` |
-| — | No account-disable exists. `disabledAt` is on `Principal` in `packages/authorization` only, not on `User` in the schema. | `apps/web/prisma/schema.prisma` |
-| — | `TenureAIPanel.tsx:121` paints the AI mark `#25a96d` — not `--primary`, not any token. Found by the new design-token lint. | `apps/web/src/components/ai/TenureAIPanel.tsx` |
-| GE-051-005 | Ratchet still at **30** unauthorized mutating paths. | — |
-| STUDIO-080-006 | `estateDrift` — the whole Terraform-declared-versus-observed drift engine, with `parseTerraformEstate`, `observedBuckets`, `observedSecurityGroups`, `observedUserPools`, `observedTables` — **has no production caller**. Reached from its own test file only. No operator can see drift. | `apps/system-studio/src/lib/aws/drift.ts` |
-| STUDIO-080-006 | Ignore-with-expiry and recurrence detection are **unreachable in production**. Neither caller of `compareDesiredToActual` (`app/page.tsx:428`, `app/tenants/[slug]/page.tsx:377`) passes a `history`, so `history.ignored` is permanently empty and `occurrences` is always 1. `app/tenants/[slug]/page.tsx:1203` **renders that 1 as a recurrence count**, which it is not. `driftIgnore` / `ignoreItem` / `activeIgnores` have no caller outside `e2e/aws-unknown-is-not-absent.spec.ts`. | `apps/system-studio/src/lib/aws/drift.ts:186`, `app/tenants/[slug]/page.tsx:1203` |
-| STUDIO-110-006 | `findingsPipeline` / `assemblePipeline` / `pipelineLines` / `mergeContributions` — the five-source normalisation and dedupe pipeline — have **no caller anywhere in the repository, including their own test file**. `/platform/security` still calls only the older `securityFindings()`. | `apps/system-studio/src/lib/aws/findings.ts` |
-| STUDIO-120-003 | `fleetHealthVerdict` **has no production caller**. `observeFleet` / `observationsFor` in the same module are reached; the verdict built on top of them is not. | `apps/system-studio/src/lib/aws/health.ts` |
-| STUDIO-080-002 | `tenantWiring` / `wiringReadings` — the resource wiring graph — **have no production caller**. `reconcileTopology` in the same file IS reached; the wiring half is not. | `apps/system-studio/src/lib/aws/topology.ts` |
-| — | ~~Studio aggregation tests are RED~~ — **withdrawn, and worth keeping as a lesson.** The reconciler measured `posture.test.ts` 1 failed, `findings.test.ts` 3 failed, `drift.test.ts` 1 failed while the agents that own those files were still writing them. Re-measured on a settled tree after the wave completed: `npm run test --workspace apps/web -- --ci "lib.aws.(posture\|findings\|drift)"` → **96 passed, 96 total, 3 suites**. A test result taken mid-flight is a reading of a tree nobody will ever have. Measure after the wave, not during it. | `apps/system-studio/src/lib/aws/{posture,findings,drift}.test.ts` |
-| — | `apps/system-studio/src/lib/aws/console-link.ts` is real, tested and reached from `/platform/estate`, and **matches no requirement id in any Bible**. A coverage gap in the programme, not in the code. Do not mint an id for it; if it is wanted, it needs a Bible clause first. | `apps/system-studio/src/lib/aws/console-link.ts` |
+---
 
-**The probe that produced the five "no production caller" rows**, so the next
-session can re-run it rather than trust it:
+## 9. SES — machine mail, and the one change that can break the company
 
-```bash
-grep -rl "\bestateDrift\b" apps/system-studio/src/app     # empty  -> no caller
-grep -rl "\bsecurityFindings\b" apps/system-studio/src/app # 2 files -> probe works
-```
+Specs: `docs/handoff/specs/ses-target-architecture.md` and
+`ses-current-state.md`.
+
+Two namespaces that must never mix:
+
+- **Human, Google Workspace, apex `@tenurework.com`** — 28 live addresses: 2
+  users (`satvik@`, `almamy@`), 8 groups (`finance@`, `legal@`, `operations@`,
+  `partnerships@`, `security@`, `support@`, `team@`, `technical@`) and 18
+  aliases. Application email NEVER sends from the apex.
+- **Machine, SES, SUBDOMAINS ONLY** — `auth.tenurework.com`,
+  `notify.tenurework.com`, `reply.tenurework.com` (opaque signed tokens
+  `r+<token>@`, never raw ids), MAIL FROM on DEDICATED `bounce.auth.` and
+  `bounce.notify.`.
+
+Reply-To must be validated against the real 28, not guessed: **`billing@` is an
+alias of `finance@`** and **`integrations@` is an alias of `technical@`**.
+
+**The apex MX/SPF/DMARC belong to Google Workspace and carry the company's live
+human email.** Get those records wrong and the company's mail breaks, not just
+the app's. Terraform and the sender module can be written and reviewed freely;
+**DNS records must be shown to the user before anything is applied.**
+
+---
+
+## 10. BLOCKED ON THE USER — record these, do not idle on them
+
+- **No AWS credentials locally.** AWS CLI v2.36.28 is installed but
+  `sts get-caller-identity` returns NoCredentials. Nothing in SES or live-AWS
+  can be verified against account `154932391697` until `aws configure` or
+  `aws sso login`. Suggest the user run it with the `!` prefix.
+- **Greptile is out of credits** (50-credit trial cap). It reviewed PRs #2 and
+  #3, then stopped; PR #4 — the largest of the session — merged with no bot
+  review. **CodeRabbit is installed and working**, and earned it: on PR #5 it
+  caught a rail destination still unreachable from the palette AND a `grep`
+  command that would hang, the latter being a defect in a fix made minutes
+  earlier.
+- `up-dbrec.yml` and `sim.sh` sit untracked in the repo root. They predate this
+  work; nobody has said whether they are wanted. Do not commit them.
+
+---
+
+## 11. PARKED
+
+`wip/relay-model-picker` (`90777f2`, unpushed) — ten Bedrock models a tenant can
+choose as its answer model, with every `modelId` and region read off the model
+card twice by independent agents. Blocked on a DELIBERATE TRIPWIRE: adding a
+Bedrock model to `MODEL_CATALOG` trips
+`tests/architecture/int-connector-capability-matrix.test.mjs` — "a Bedrock model
+appeared in the catalog — §6 of the matrix needs rewriting, and INT-080-004
+revisiting". It also trips `no-hardcoded-estate.test.mjs`, because the per-model
+region lists are region literals inside `packages/`. Both are real obligations
+the repo set on purpose; resolve them, do not bypass them.
+
+Traps already paid for on that branch: **Claude 5.x model ids carry NO date and
+NO `-v1:0` suffix** (`anthropic.claude-opus-5`), and four of the ten cannot be
+invoked by base id at all — they need a cross-region inference profile.
