@@ -121,6 +121,34 @@ describe("a service with no entry is unavailable, not allowed", () => {
     }
   })
 
+  // Every name an object inherits without anyone declaring it. Read off
+  // `Object.prototype` rather than listed, so a runtime that adds another
+  // inherited member is covered by this test without it being edited.
+  const inheritedNames = Object.getOwnPropertyNames(Object.prototype)
+
+  it("treats an inherited property name as no service at all", () => {
+    // `key in table` and `table[key]` both walk the prototype chain, so
+    // "toString" and "constructor" once answered as though they had a row.
+    expect(inheritedNames.length).toBeGreaterThan(0)
+    for (const name of inheritedNames) {
+      for (const partition of ALL_PARTITIONS) {
+        expect(serviceAvailableIn(name as ServiceId, partition)).toBe(false)
+      }
+      expect(() => requireService(name as ServiceId, "aws")).toThrow(
+        /is not a service this build has decided about/,
+      )
+    }
+  })
+
+  it("treats an inherited property name as no partition either", () => {
+    for (const name of inheritedNames) {
+      expect(serviceAvailableIn("s3", name)).toBe(false)
+      expect(() => requireService("s3", name)).toThrow(
+        /is not a partition this build knows/,
+      )
+    }
+  })
+
   it("refuses, and says the service is the thing it cannot vouch for", () => {
     // The distinction matters to whoever reads the log: "not in this partition"
     // sends an operator to the partition, and this is not that problem.

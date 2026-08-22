@@ -116,6 +116,21 @@ for (const partition of ALL_PARTITIONS) {
 export const PARTITION_SERVICES: Record<Partition, ReadonlySet<ServiceId>> = partitionServices
 
 /**
+ * Whether `key` is a row this file wrote, as opposed to one every object has.
+ *
+ * `key in table` and `table[key]` both walk the prototype chain, so `"toString"`
+ * and `"constructor"` answer as though they were services. `serviceAvailableIn`
+ * still refused them — `Function.prototype["aws"]` is undefined, so the second
+ * lookup failed — but it refused them by luck rather than by construction, and
+ * the refusal MESSAGE got it wrong: it reported a real service missing from a
+ * partition instead of a name that is not a service at all, which sends whoever
+ * reads the log to the wrong place entirely.
+ */
+function hasOwnRow(table: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(table, key)
+}
+
+/**
  * What a refusal says, in the three ways it can be reached.
  *
  * Separated so each branch names the actual problem. "Unavailable" for a
@@ -124,14 +139,14 @@ export const PARTITION_SERVICES: Record<Partition, ReadonlySet<ServiceId>> = par
  * different places, and a single message cannot do both.
  */
 function refusalMessage(service: string, partition: string): string {
-  if (!(service in SERVICE_AVAILABILITY)) {
+  if (!hasOwnRow(SERVICE_AVAILABILITY, service)) {
     return (
       `"${service}" is not a service this build has decided about, so nothing can be said about ` +
       `whether the "${partition}" partition offers it. Give it a row in SERVICE_AVAILABILITY ` +
       `(lib/partition-services.ts). Refusing rather than assuming it is reachable.`
     )
   }
-  if (!(partition in PARTITION_SERVICES)) {
+  if (!hasOwnRow(PARTITION_SERVICES, partition)) {
     return (
       `"${partition}" is not a partition this build knows (${ALL_PARTITIONS.join(", ")}), so ` +
       `nothing can be said about whether "${service}" exists in it. Refusing rather than ` +
@@ -167,10 +182,11 @@ export function serviceAvailableIn(service: ServiceId, partition: string): boole
   // typed, but a value that crossed a JSON boundary or an `as` cast arrives
   // here unchecked, and this function must answer "no" for it rather than
   // throw a TypeError the caller has no branch for.
-  const row: Readonly<Record<string, boolean>> | undefined = (
+  if (!hasOwnRow(SERVICE_AVAILABILITY, service)) return false
+  const row: Readonly<Record<string, boolean>> = (
     SERVICE_AVAILABILITY as Readonly<Record<string, Readonly<Record<string, boolean>>>>
   )[service]
-  if (!row) return false
+  if (!hasOwnRow(row, partition)) return false
   // `=== true`, not truthiness: an absent partition key must read as a refusal
   // and not as an answer.
   return row[partition] === true
