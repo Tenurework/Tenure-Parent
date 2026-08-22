@@ -63,20 +63,34 @@ function mockFlagDecision(flag: string, subjectId: string) {
  * Hand-writing either would let a fixture assert a shape `loadSearchCorpus`
  * cannot produce — and the completeness check under test reads the citation.
  */
-function mockSearchDoc(doc: {
-  id: string
-  kind: string
-  title: string
-  body: string
-  href: string
-  mode: string
-  context?: string
-  ageMs?: number
-  deleted?: boolean
-  /** Two rows that are one record: the same external id. */
-  externalId?: string
-}) {
-  const now = new Date()
+function mockSearchDoc(
+  doc: {
+    id: string
+    kind: string
+    title: string
+    body: string
+    href: string
+    mode: string
+    context?: string
+    ageMs?: number
+    deleted?: boolean
+    /** Two rows that are one record: the same external id. */
+    externalId?: string
+  },
+  /**
+   * The instant the whole corpus is observed at, passed in by the caller.
+   *
+   * NOT `new Date()` per row. `compareCandidates` orders candidates by score,
+   * then RECENCY, then id — so a row built one millisecond after its twin is
+   * strictly fresher and wins deduplication before the id tie-break is ever
+   * reached. Reading the clock once per row therefore let the machine decide
+   * which of two projections of one record the model was shown: green on a
+   * runner fast enough to build both rows inside a single millisecond, red on
+   * one that was not. A fixture must not leave a compared field to the wall
+   * clock.
+   */
+  now: Date,
+) {
   const asOf = new Date(now.getTime() - (doc.ageMs ?? 1000))
   const projected = projectTenureRecord({
     tenant: "inst_test",
@@ -103,6 +117,10 @@ function mockSearchDoc(doc: {
  * zero and the assertion below would pass because nothing was retrieved.
  */
 function mockSearchCorpus() {
+  // Read once, and shared by every row: `ageMs` is then the ONLY thing that
+  // separates two rows in time, which is what makes the relative order of this
+  // corpus a property of the fixture rather than of the host's speed.
+  const now = new Date()
   return [
     {
       id: "app_approved",
@@ -154,7 +172,7 @@ function mockSearchCorpus() {
       mode: "SEARCH_PROJECTION",
       deleted: true,
     },
-  ].map(mockSearchDoc)
+  ].map((doc) => mockSearchDoc(doc, now))
 }
 
 let mockCorpus: () => ReturnType<typeof mockSearchCorpus> = mockSearchCorpus
@@ -423,6 +441,22 @@ describe("the answer is told what it does not have", () => {
 
 describe("one record does not get two of the six slots on the live route", () => {
   it("offers the twin projection once and reports the drop", async () => {
+    // WHICH twin survives is decided by `compareCandidates`: score, then
+    // recency, then id by code point. The two projections carry the same title
+    // and body, so they score the same, and the fixture stamps one `now` across
+    // the corpus so they are the same age — which leaves the code-point id
+    // tie-break as the decider, and `doc_poison` precedes `mem_poison_twin`.
+    //
+    // That precondition is asserted rather than assumed. It is the one this
+    // test lost when each row read its own `new Date()`: the memory twin was
+    // then a millisecond fresher on any machine slow enough to tick between the
+    // two rows, won on RECENCY before the id tie-break was reached, and the
+    // route offered `/orgs/alpha/memory` instead. The corpus below is the same
+    // one the route is about to be given.
+    const twins = mockSearchCorpus().filter((d) => d.citation.ref.externalId === "doc_poison")
+    expect(twins.map((d) => d.id)).toEqual(["doc_poison", "mem_poison_twin"])
+    expect(twins[0].asOf.getTime()).toBe(twins[1].asOf.getTime())
+
     mockAiComplete.mockClear()
     const body = await (await chat(chatRequest())).json()
 
